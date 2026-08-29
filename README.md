@@ -80,7 +80,7 @@ an open experiment variable, spec §7).
 | §7 Self-play (E1) + historical league pool with PFSP (E2) | `dota_rl/training/league.py` | ✅ |
 | §16 Patch-resilience pipeline (manifest diff · numeric/structural routing · approval gate · fine-tune · rollback) | `dota_rl/env/patch.py`, `dota_rl/training/patch_pipeline.py` | ✅ |
 | §7 RND curiosity (E3–E4) | — | ⏳ |
-| §3.1 Real Dota adapter + ZMQ bridge + Lua harvester | `dota_rl/env/dota_adapter.py`, `dota_rl/transport/`, `scripts/api_probe.lua`, `dota2/…/bots/*.lua` | ⏳ stub — needs M0 API probe first |
+| §3.1 Real Dota adapter — protocol, wire→contract parsing, `reset()/step()` | `dota_rl/env/dota_adapter.py`, `dota_rl/transport/zmq_bridge.py` | ✅ code + tests (in-process bridge); needs [M0 manual steps](docs/M0_real_adapter.md): API probe → Lua bot → point learner at adapter |
 
 ---
 
@@ -135,7 +135,7 @@ Each run writes `runs/<name>/`: `metrics.jsonl`, `tb/` (TensorBoard),
 
 | Milestone | Deliverable | Status |
 |---|---|---|
-| M0 | API probe + observation-field access matrix (`scripts/api_probe.lua`) | ⏳ ready to run |
+| M0 | Real Dota adapter — bridge + protocol + parsing done & tested; 3 manual steps left ([docs/M0_real_adapter.md](docs/M0_real_adapter.md)) | 🔧 handoff |
 | M1 | F0 environment adapter — 1000+ clean transitions, no deadlock | ✅ (mock) |
 | M2 | PPO single-worker — finite losses, measurable learning | ✅ |
 | M3 | PPO multi-worker — throughput scaling | ✅ (parallel rollout) |
