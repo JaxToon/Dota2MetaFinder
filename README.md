@@ -42,6 +42,17 @@ JSON, public matches in `matches.sqlite`. Re-run it to refresh; `heroStats` and
 matchups expire after a few hours / days, stored matches never.
 A free `OPENDOTA_API_KEY` env var raises the rate limit.
 
+**Sample output** (Divine bracket, ~26k matches):
+[Meta Snapshot](https://claude.ai/code/artifact/eff05d18-abac-47f0-9481-7dccae4bb14f)
+— tier list, counters, synergy pairs.
+
+- Top of the tier list: Bounty Hunter (56%), Phantom Lancer, OD, Spectre, Lifestealer
+- Hard counters: Treant > Invoker (+0.12), Earthshaker > Sven (+0.11), Nyx/Phoenix/Ember > Void Spirit
+- Synergy pairs: Invoker + Skywrath, Tidehunter + Luna, CM + Earth Spirit
+
+> Pair-level stats (counters, synergy) are noisy at 26k matches — run
+> `scripts/fetch.py --matches 200000` for firm numbers.
+
 ---
 
 ## How each number is computed
