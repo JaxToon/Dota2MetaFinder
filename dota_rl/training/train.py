@@ -131,6 +131,16 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
         print(f"self-play league ON  (self {lg_cfg.ratio_self} / hist {lg_cfg.ratio_history} "
               f"/ scripted {lg_cfg.ratio_scripted}, pool<= {lg_cfg.pool_capacity})")
 
+    # RND curiosity (spec section 7 E3-E4). Off unless exploration.rnd_enabled.
+    expl = cfg.get("exploration", {})
+    rnd = None
+    if expl.get("rnd_enabled", False):
+        from ..agents.rnd import RND, coef_schedule
+        rnd = RND(lr=float(expl.get("rnd_lr", 1e-4)), device=device)
+        rnd_coef0 = float(expl.get("rnd_coef", 0.5))
+        rnd_coef1 = float(expl.get("rnd_coef_final", 0.0))
+        print(f"RND curiosity ON  (coef {rnd_coef0} -> {rnd_coef1} annealed)")
+
     collector = RolloutCollector(make_env, num_envs, horizon, device, league=league)
     registry = CheckpointRegistry(run_dir / "checkpoints")
     logger = JsonlLogger(run_dir / "metrics.jsonl")
@@ -156,6 +166,14 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
         invalid_actions += int((~legal.bool()).sum().item())
         total_actions += legal.numel()
 
+        rnd_row = {}
+        if rnd is not None:
+            r_int = rnd.intrinsic_reward(batch["obs"]).to(device)
+            coef = coef_schedule(rnd_coef0, rnd_coef1, it / iterations)
+            batch["rewards"] = batch["rewards"] + coef * r_int
+            rnd_row = {"rnd/coef": coef, "rnd/intrinsic_mean": float(r_int.mean()),
+                       "rnd/predictor_loss": rnd.update(batch["obs"])}
+
         stats = trainer.update(batch)
         ep = collector.drain_episode_stats()
 
@@ -167,7 +185,7 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
             league_row = league.summary()
 
         sps = (horizon * num_envs * it) / max(1e-9, time.time() - t0)
-        row = {**stats, **{f"rollout/{k}": v for k, v in ep.items()}, **league_row,
+        row = {**stats, **{f"rollout/{k}": v for k, v in ep.items()}, **league_row, **rnd_row,
                "env/invalid_action_rate": invalid_actions / max(1, total_actions),
                "perf/env_steps_per_sec": sps}
         logger.log(it, row)
