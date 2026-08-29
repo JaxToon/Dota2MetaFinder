@@ -61,6 +61,24 @@ an open experiment variable, spec §7).
 
 ---
 
+## What the F2 agent learned (spec §15)
+
+`scripts/meta_report.py` on the F2 champion (60 deterministic episodes) →
+[full JSON](docs/f2_meta_report.json) · **visual debrief:
+[F2 Lane Debrief](https://claude.ai/code/artifact/6d635164-e20a-4b2c-b06f-bdfa09683bc6)**
+
+- **Hold mid, win on economy.** Occupancy collapses onto the creep line; 0 hero
+  kills/episode; every win is a net-worth + survival lead at the time limit.
+- **Level-7 burst is the power spike.** `ability_2` into a <45%-HP enemy is the
+  only combat action worth a large positive ΔV (**+0.53** vs matched baseline).
+- **Early aggression is punished.** `ability_0` at level 1 / even HP costs
+  **−1.27** V(s); the agent already suppresses it (3 casts/ep).
+- **Sustain > trades.** Heal ability + heal item spammed on cooldown, both +ΔV.
+- **Open question:** it engages at a *lower* mean HP advantage (+0.36) than it
+  passes at (+0.44) — a candidate for an F3 objective / shaped penalty.
+
+---
+
 ## Spec § → module
 
 | Spec area | Module | Status |
