@@ -50,7 +50,7 @@ def main() -> None:
         print(f"\nCOMP: {', '.join(r['heroes'])}")
         print("-" * 60)
         print(f"  comp score      {r['comp_score']:+.3f}   "
-              f"(meta {r['meta_strength']:+.3f} · synergy {r['total_synergy']:+.3f})")
+              f"(meta {r['meta_strength']:+.3f}  synergy {r['total_synergy']:+.3f})")
         print(f"  attribute mix   {r['attr_mix']}   melee/ranged {r['melee_ranged']}")
         print(f"  role coverage   {[k for k,v in r['role_coverage'].items() if v]}")
         if r["gaps"]:

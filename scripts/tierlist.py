@@ -32,7 +32,7 @@ def main() -> None:
         rows = [r for r in rows if args.role.lower() in [x.lower() for x in r["roles"]]]
 
     print(f"\nDOTA 2 TIER LIST  --  {args.bracket}"
-          + (f"  ·  role: {args.role}" if args.role else "") + "\n" + "-" * 60)
+          + (f"   role: {args.role}" if args.role else "") + "\n" + "-" * 60)
     cur = None
     for r in rows[: args.top]:
         if r["tier"] != cur:
