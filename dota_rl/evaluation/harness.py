@@ -59,21 +59,21 @@ def _play_episode(env: MockDotaEnv, runner, seed: int) -> dict:
 
 
 def evaluate_policy(policy: ActorCritic, cfg: EvalConfig, *, device="cpu",
-                    reward_cfg: RewardConfig | None = None, rotating: bool = False) -> dict:
+                    reward_cfg: RewardConfig | None = None, rotating: bool = False,
+                    manifest=None) -> dict:
     policy.eval()
     seeds = (list(range(cfg.rotating_seed_base, cfg.rotating_seed_base + cfg.games_per_opponent))
              if rotating else list(cfg.regression_seeds)[: cfg.games_per_opponent])
     runner = TorchPolicyRunner(policy, device, cfg.deterministic)
-    infos = []
-    for s in seeds:
-        env = MockDotaEnv(phase=cfg.phase, reward_cfg=reward_cfg or RewardConfig(), seed=s)
-        infos.append(_play_episode(env, runner, s))
+
+    def mk(s):
+        return MockDotaEnv(phase=cfg.phase, reward_cfg=reward_cfg or RewardConfig(),
+                           seed=s, patch=manifest)
+
+    infos = [_play_episode(mk(s), runner, s) for s in seeds]
     out = {"vs_scripted_bot": summarize_episodes(infos)}
 
     # sanity: agent should crush a random policy
-    rnd_infos = []
-    for s in seeds:
-        env = MockDotaEnv(phase=cfg.phase, reward_cfg=reward_cfg or RewardConfig(), seed=s)
-        rnd_infos.append(_play_episode(env, RandomPolicy(seed=s), s))
+    rnd_infos = [_play_episode(mk(s), RandomPolicy(seed=s), s) for s in seeds]
     out["random_vs_scripted_bot"] = summarize_episodes(rnd_infos)
     return out

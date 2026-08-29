@@ -25,16 +25,16 @@ follow-up (Milestone M0).
 │   ├── Blueprint_RL_Dota2_Revisi.md                  source blueprint (ID)
 │   └── Dota2_RL_Technical_Development_Specification.pdf  engineering spec (24 §)
 ├── dota_rl/                     the package
-│   ├── env/          observation / action / mask contract, reward, mock 1v1 sim
+│   ├── env/          obs/action/mask contract, reward, patch manifest, mock 1v1 sim
 │   │                 (opponent = scripted OR any policy via mirrored obs)
 │   ├── agents/       PPO+LSTM masked multi-head policy, attention encoder, embeddings
-│   ├── training/     rollout · GAE · PPO (TBPTT) · checkpoints · promotion gates · self-play league
+│   ├── training/     rollout · GAE · PPO (TBPTT) · checkpoints · gates · league · patch pipeline
 │   ├── evaluation/   Wilson-CI winrate · Elo · regression gate · baselines
-│   ├── analytics/    event-aligned value-head meta analysis
+│   ├── analytics/    build order · ability timing · power spikes · heatmaps · matched dV
 │   ├── transport/    Lua↔Python bridge (stub) + protobuf schema
 │   └── utils/        config loading, seeding
-├── configs/          ppo_f0.yaml · ppo_f1.yaml · ppo_f2.yaml · env.yaml · eval.yaml
-├── scripts/          train.py · evaluate.py · meta_report.py · api_probe.lua
+├── configs/          ppo_f0/f1/f2.yaml · ppo_f2_league.yaml · env.yaml · eval.yaml
+├── scripts/          train.py · evaluate.py · meta_report.py · patch_diff.py · api_probe.lua
 ├── dota2/scripts/vscripts/bots/   Lua harvester + action handler (stub; mirrors the
 │                                  real install path)
 ├── tests/            30 tests (spec §13)
@@ -78,6 +78,7 @@ an open experiment variable, spec §7).
 | §15 Event-aligned value-head meta analytics | `dota_rl/analytics/value_events.py` | ✅ |
 | §4.3 Curriculum transfer / fine-tune (`train.init_from`) | `dota_rl/training/train.py` | ✅ |
 | §7 Self-play (E1) + historical league pool with PFSP (E2) | `dota_rl/training/league.py` | ✅ |
+| §16 Patch-resilience pipeline (manifest diff · numeric/structural routing · approval gate · fine-tune · rollback) | `dota_rl/env/patch.py`, `dota_rl/training/patch_pipeline.py` | ✅ |
 | §7 RND curiosity (E3–E4) | — | ⏳ |
 | §3.1 Real Dota adapter + ZMQ bridge + Lua harvester | `dota_rl/env/dota_adapter.py`, `dota_rl/transport/`, `scripts/api_probe.lua`, `dota2/…/bots/*.lua` | ⏳ stub — needs M0 API probe first |
 
@@ -100,9 +101,13 @@ python scripts/train.py configs/ppo_f1.yaml --set ppo.lr=1e-4 train.iterations=1
 python scripts/evaluate.py    runs/dota_rl_f1_baseline/checkpoints/ckpt_000140.pt
 
 # event-aligned meta / power-spike report
-python scripts/meta_report.py runs/dota_rl_f1_baseline/checkpoints/ckpt_000140.pt
+python scripts/meta_report.py runs/dota_rl_f2_build/checkpoints/ckpt_000040.pt --json report.json
 
-python -m pytest                                     # spec §13 test suite
+# patch detected -> classify -> auto fine-tune / approval gate / rollback (spec §16)
+python scripts/patch_diff.py --mutate "hero.attack_damage=26" \
+    --migrate runs/dota_rl_f2_build/checkpoints/ckpt_000040.pt
+
+python -m pytest                                     # spec §13 test suite (40 tests)
 ```
 
 Each run writes `runs/<name>/`: `metrics.jsonl`, `tb/` (TensorBoard),
@@ -121,8 +126,8 @@ Each run writes `runs/<name>/`: `metrics.jsonl`, `tb/` (TensorBoard),
 | AC-05 learning across ≥3 seeds | rotating-seed eval + F1 gate | ✅ (frozen 0.75 / rotating comparable) |
 | AC-06 regression | `evaluation/regression.py` + `test_evaluation.py`; champion/challenger check + auto-rollback | ✅ |
 | AC-07 reproducibility | `utils/seeding.py`, `test_env.py` determinism | ✅ |
-| AC-08 meta analytics | `analytics/value_events.py`, `meta_report.py` | ✅ |
-| AC-09 patch safety | schema versions in `protocol.py`; structural-diff gate | ⏳ pipeline stub |
+| AC-08 meta analytics | `analytics/` (build order · ability timing · power spikes · heatmaps · matched dV), `meta_report.py`, `test_analytics.py` | ✅ |
+| AC-09 patch safety | `env/patch.py` manifest + hash · `training/patch_pipeline.py` (numeric→auto / structural→approval gate / NO-OP / rollback) · `scripts/patch_diff.py` · `test_patch.py` | ✅ |
 
 ---
 
@@ -139,7 +144,7 @@ Each run writes `runs/<name>/`: `metrics.jsonl`, `tb/` (TensorBoard),
 | M6 | Evaluation harness — automated regression + Elo | ✅ |
 | M7 | League self-play — historical pool + PFSP opponent sampling | ✅ (`configs/ppo_f2_league.yaml`) |
 | M8 | Meta analyzer — event-aligned value analytics | ✅ |
-| M9 | Patch pipeline — diff → retrain → regression gate | ⏳ stub |
+| M9 | Patch pipeline — diff → classify → retrain/NO-OP → regression gate | ✅ (`scripts/patch_diff.py`) |
 
 ### Milestone M0 — before any real-client training
 

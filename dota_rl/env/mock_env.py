@@ -107,11 +107,12 @@ def _mirror(p) -> np.ndarray:
 
 
 class _Hero:
-    def __init__(self, pos, tower_pos):
+    def __init__(self, pos, tower_pos, hp0: float = MAX_HERO_HP, mana0: float = MAX_HERO_MANA):
         self.pos = np.array(pos, dtype=np.float64)
         self.tower_pos = np.array(tower_pos, dtype=np.float64)
-        self.hp = MAX_HERO_HP
-        self.mana = MAX_HERO_MANA
+        self.hp0, self.mana0 = hp0, mana0
+        self.hp = hp0
+        self.mana = mana0
         self.level = 1
         self.xp = 0.0
         self.gold = 0.0
@@ -144,14 +145,27 @@ class MockDotaEnv:
 
     def __init__(self, phase: str = "F1", reward_cfg: RewardConfig | None = None,
                  seed: int = 0, patch_id: str = "sandbox_mock_v1",
-                 max_steps: int = MAX_STEPS, opponent=None):
+                 max_steps: int = MAX_STEPS, opponent=None, patch=None):
         self.phase = phase
-        self.patch_id = patch_id
         self.max_steps = max_steps
         self.reward_cfg = reward_cfg or RewardConfig()
         self.diff = PHASE_DIFFICULTY.get(phase, PHASE_DIFFICULTY["F2"])
         # opponent(enemy_obs) -> Action ; None = built-in scripted laner
         self.opponent = opponent
+
+        # patch manifest -> the game data the env depends on (spec 12, 16)
+        if patch is None:
+            from .patch import default_manifest
+            patch = default_manifest()
+        self.patch = patch
+        self.patch_id = patch.patch_id or patch_id
+        self._hp_max = patch.hero.max_hp
+        self._mana_max = patch.hero.max_mana
+        self._hero_dmg = patch.hero.attack_damage
+        self._move_speed = patch.hero.move_speed
+        self._atk_range = patch.hero.attack_range
+        self._abilities = [dict(a) for a in patch.abilities] or ABILITIES
+        self._items = [dict(i) for i in patch.items] or ITEMS
         self.rng = np.random.default_rng(seed)
         self._seed = seed
         self.shaper = RewardShaper(self.reward_cfg)
@@ -165,8 +179,8 @@ class MockDotaEnv:
     def _reset_world(self, seed):
         self.rng = np.random.default_rng(seed)
         self.t = 0
-        self.agent = _Hero(pos=(0.15, 0.15), tower_pos=(0.10, 0.10))
-        self.enemy = _Hero(pos=(0.85, 0.85), tower_pos=(0.90, 0.90))
+        self.agent = _Hero((0.15, 0.15), (0.10, 0.10), self._hp_max, self._mana_max)
+        self.enemy = _Hero((0.85, 0.85), (0.90, 0.90), self._hp_max, self._mana_max)
         self.enemy_tower_max = self.diff["tower_hp"]
         self.ally_tower_max = TOWER_HP
         self.enemy_tower_hp = self.enemy_tower_max
@@ -211,9 +225,9 @@ class MockDotaEnv:
             rows[SLOT_FOE_HERO] = dict(
                 present=True, is_enemy=True, is_creep=False, visible=vis and foe.alive,
                 pos=foe.pos if (vis and foe.alive) else np.zeros(2),
-                hp_ratio=(foe.hp / MAX_HERO_HP) if (vis and foe.alive) else 0.0,
+                hp_ratio=(foe.hp / self._hp_max) if (vis and foe.alive) else 0.0,
                 hero_id=HERO_ID_ENEMY, alive=foe.alive,
-                in_range=foe.alive and _dist(me.pos, foe.pos) <= ATTACK_RANGE,
+                in_range=foe.alive and _dist(me.pos, foe.pos) <= self._atk_range,
             )
 
         for i, c in enumerate(self.creeps):
@@ -221,14 +235,14 @@ class MockDotaEnv:
                 present=True, is_enemy=True, is_creep=True, visible=True,
                 pos=c.pos, hp_ratio=(c.hp / CREEP_HP) if c.alive else 0.0,
                 hero_id=HERO_ID_CREEP, alive=c.alive,
-                in_range=c.alive and _dist(me.pos, c.pos) <= ATTACK_RANGE,
+                in_range=c.alive and _dist(me.pos, c.pos) <= self._atk_range,
             )
 
         rows[SLOT_ENEMY_TOWER] = dict(
             present=True, is_enemy=True, is_creep=False, visible=True,
             pos=np.asarray(foe_tower_pos), hp_ratio=foe_tower_hp / foe_tower_max,
             hero_id=HERO_ID_TOWER, alive=foe_tower_hp > 0,
-            in_range=foe_tower_hp > 0 and _dist(me.pos, foe_tower_pos) <= ATTACK_RANGE,
+            in_range=foe_tower_hp > 0 and _dist(me.pos, foe_tower_pos) <= self._atk_range,
         )
         rows[SLOT_ALLY_TOWER] = dict(
             present=True, is_enemy=False, is_creep=False, visible=True,
@@ -256,8 +270,8 @@ class MockDotaEnv:
 
         me_pos = _mirror(me.pos) if mirror else np.asarray(me.pos, dtype=np.float64)
         obs["agent_scalars"] = encode_agent_scalars(
-            hp_ratio=np.clip(me.hp / MAX_HERO_HP, 0, 1),
-            mana_ratio=np.clip(me.mana / MAX_HERO_MANA, 0, 1),
+            hp_ratio=np.clip(me.hp / self._hp_max, 0, 1),
+            mana_ratio=np.clip(me.mana / self._mana_max, 0, 1),
             level_norm=me.level / MAX_LEVEL,
             gold_norm=np.clip(me.gold / 3000.0, 0, 1),
             xp_norm=np.clip(me.xp / (220.0 * MAX_LEVEL), 0, 1),
@@ -268,7 +282,7 @@ class MockDotaEnv:
         )
 
         ab_ready = np.zeros(NUM_ABILITIES, dtype=bool)
-        for i, ab in enumerate(ABILITIES[:NUM_ABILITIES]):
+        for i, ab in enumerate(self._abilities[:NUM_ABILITIES]):
             ready = me.ability_cd[i] == 0 and me.mana >= ab["mana"]
             ab_ready[i] = ready
             obs["abilities"][i] = [
@@ -281,7 +295,7 @@ class MockDotaEnv:
 
         it_ready = np.zeros(NUM_ITEMS, dtype=bool)
         for i in range(NUM_ITEMS):
-            has = i < len(ITEMS)
+            has = i < len(self._items)
             ready = has and me.item_cd[i] == 0
             it_ready[i] = ready
             obs["items"][i] = [float(has), float(ready), (i + 1) / (NUM_ITEMS + 1)]
@@ -417,13 +431,13 @@ class MockDotaEnv:
         for i in range(NUM_ITEMS):
             h.item_cd[i] = max(0, h.item_cd[i] - 1)
         if h.alive:
-            h.hp = min(MAX_HERO_HP, h.hp + 3.0)
-            h.mana = min(MAX_HERO_MANA, h.mana + 4.0)
+            h.hp = min(self._hp_max, h.hp + 3.0)
+            h.mana = min(self._mana_max, h.mana + 4.0)
         else:
             h.respawn_timer -= 1
             if h.respawn_timer == 0:
-                h.hp = MAX_HERO_HP
-                h.mana = MAX_HERO_MANA
+                h.hp = self._hp_max
+                h.mana = self._mana_max
                 h.pos = h.tower_pos.copy()
 
     def _move_toward(self, hero: _Hero, target):
@@ -432,7 +446,7 @@ class MockDotaEnv:
         n = np.linalg.norm(d)
         if n > 1e-6:
             hero.facing = math.atan2(d[1], d[0])
-            step = min(MOVE_SPEED, n)
+            step = min(self._move_speed, n)
             hero.pos = np.clip(hero.pos + d / n * step, 0.0, 1.0)
 
     # --- learner (agent) action -------------------------------------------------
@@ -442,7 +456,7 @@ class MockDotaEnv:
         if t == ActionType.MOVE and action.target_xy is not None:
             self._move_toward(actor, action.target_xy)
         elif t == ActionType.ATTACK and action.target_entity_slot >= 0:
-            self._slot_attack(actor, foe, action.target_entity_slot, HERO_ATTACK_DMG, rin, is_learner)
+            self._slot_attack(actor, foe, action.target_entity_slot, self._hero_dmg, rin, is_learner)
         elif t == ActionType.CAST and action.ability_slot >= 0:
             self._cast(actor, foe, action.ability_slot, action.target_entity_slot, rin, is_learner)
         elif t == ActionType.ITEM and action.item_slot >= 0:
@@ -452,11 +466,11 @@ class MockDotaEnv:
     def _slot_attack(self, actor: _Hero, foe: _Hero, slot: int, dmg: float,
                      rin: RewardInputs, is_learner: bool):
         if slot == SLOT_FOE_HERO:
-            if foe.alive and _dist(actor.pos, foe.pos) <= ATTACK_RANGE:
+            if foe.alive and _dist(actor.pos, foe.pos) <= self._atk_range:
                 self._hero_takes_damage(foe, actor, dmg, rin, foe_is_agent=not is_learner)
         elif SLOT_CREEP_0 <= slot < SLOT_CREEP_0 + NUM_CREEPS:
             c = self.creeps[slot - SLOT_CREEP_0]
-            if c.alive and _dist(actor.pos, c.pos) <= ATTACK_RANGE:
+            if c.alive and _dist(actor.pos, c.pos) <= self._atk_range:
                 c.hp -= dmg
                 if c.hp <= 0:
                     c.alive = False
@@ -473,13 +487,13 @@ class MockDotaEnv:
               rin: RewardInputs, is_learner: bool):
         if ab_slot < 0 or ab_slot >= NUM_ABILITIES:
             return
-        ab = ABILITIES[ab_slot]
+        ab = self._abilities[ab_slot]
         if actor.ability_cd[ab_slot] > 0 or actor.mana < ab["mana"]:
             return
         actor.mana -= ab["mana"]
         actor.ability_cd[ab_slot] = ab["cd"]
         if ab["kind"] == "heal":
-            actor.hp = min(MAX_HERO_HP, actor.hp + ab["heal"])
+            actor.hp = min(self._hp_max, actor.hp + ab["heal"])
             return
         # nuke
         if ent_slot == SLOT_FOE_HERO:
@@ -496,12 +510,12 @@ class MockDotaEnv:
                     actor.xp += CREEP_XP
 
     def _use_item(self, actor: _Hero, foe: _Hero, slot: int, rin: RewardInputs, is_learner: bool):
-        if slot < 0 or slot >= len(ITEMS) or actor.item_cd[slot] > 0:
+        if slot < 0 or slot >= len(self._items) or actor.item_cd[slot] > 0:
             return
-        it = ITEMS[slot]
+        it = self._items[slot]
         actor.item_cd[slot] = it["cd"]
         if it["kind"] == "heal":
-            actor.hp = min(MAX_HERO_HP, actor.hp + it["heal"])
+            actor.hp = min(self._hp_max, actor.hp + it["heal"])
         elif it["kind"] == "nuke":
             if foe.alive and _dist(actor.pos, foe.pos) <= it["range"]:
                 self._hero_takes_damage(foe, actor, it["dmg"], rin, foe_is_agent=not is_learner)
@@ -528,7 +542,7 @@ class MockDotaEnv:
         # "foe_tower" is relative to the actor -> resolve to a concrete tower.
         hits_enemy_tower = foe_tower if actor_is_agent else (not foe_tower)
         tower_pos = self.enemy.tower_pos if hits_enemy_tower else self.agent.tower_pos
-        if _dist(actor.pos, tower_pos) > ATTACK_RANGE:
+        if _dist(actor.pos, tower_pos) > self._atk_range:
             return
         if hits_enemy_tower:
             if self.enemy_tower_hp <= 0:
@@ -564,17 +578,17 @@ class MockDotaEnv:
         dmg_scale = self.diff["dmg_scale"]
         aggr = self.diff["enemy"]
 
-        if e.hp < self.diff["retreat_hp"] * MAX_HERO_HP:
+        if e.hp < self.diff["retreat_hp"] * self._hp_max:
             self._move_toward(e, e.tower_pos)
             return
-        if a.alive and _dist(e.pos, a.pos) <= ATTACK_RANGE and self.rng.random() < 0.4 + 0.6 * aggr:
-            self._hero_takes_damage(a, e, HERO_ATTACK_DMG * dmg_scale, rin, foe_is_agent=True)
+        if a.alive and _dist(e.pos, a.pos) <= self._atk_range and self.rng.random() < 0.4 + 0.6 * aggr:
+            self._hero_takes_damage(a, e, self._hero_dmg * dmg_scale, rin, foe_is_agent=True)
             return
-        if (a.alive and _dist(e.pos, a.pos) <= ABILITIES[0]["range"] and e.mana >= ABILITIES[0]["mana"]
+        if (a.alive and _dist(e.pos, a.pos) <= self._abilities[0]["range"] and e.mana >= self._abilities[0]["mana"]
                 and e.ability_cd[0] == 0 and self.rng.random() < aggr):
-            e.mana -= ABILITIES[0]["mana"]
-            e.ability_cd[0] = ABILITIES[0]["cd"]
-            self._hero_takes_damage(a, e, ABILITIES[0]["dmg"] * dmg_scale, rin, foe_is_agent=True)
+            e.mana -= self._abilities[0]["mana"]
+            e.ability_cd[0] = self._abilities[0]["cd"]
+            self._hero_takes_damage(a, e, self._abilities[0]["dmg"] * dmg_scale, rin, foe_is_agent=True)
             return
         best, bestd = None, 1e9
         for i, c in enumerate(self.creeps):
@@ -583,9 +597,9 @@ class MockDotaEnv:
                 if d < bestd:
                     best, bestd = i, d
         if best is not None:
-            if bestd <= ATTACK_RANGE:
+            if bestd <= self._atk_range:
                 c = self.creeps[best]
-                c.hp -= HERO_ATTACK_DMG
+                c.hp -= self._hero_dmg
                 if c.hp <= 0:
                     c.alive = False
                     c.respawn = 20
@@ -602,9 +616,9 @@ class MockDotaEnv:
         zap = self.diff["tower_zap"]
         if zap <= 0:
             return
-        if a.alive and _dist(a.pos, self.enemy.tower_pos) <= ATTACK_RANGE and self.enemy_tower_hp > 0:
+        if a.alive and _dist(a.pos, self.enemy.tower_pos) <= self._atk_range and self.enemy_tower_hp > 0:
             self._hero_takes_damage(a, e, TOWER_ATTACK_DMG * zap, rin, foe_is_agent=True)
-        if e.alive and _dist(e.pos, self.agent.tower_pos) <= ATTACK_RANGE and self.ally_tower_hp > 0:
+        if e.alive and _dist(e.pos, self.agent.tower_pos) <= self._atk_range and self.ally_tower_hp > 0:
             e.hp -= TOWER_ATTACK_DMG * zap
             if e.hp <= 0:
                 e.respawn_timer = RESPAWN_STEPS
