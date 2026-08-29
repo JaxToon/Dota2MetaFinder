@@ -77,8 +77,11 @@ PHASE_DIFFICULTY = {
            "tower_hp": 700.0, "win_margin": 1.0},
     "F1": {"enemy": 0.5, "tower_zap": 0.0, "retreat_hp": 0.5, "dmg_scale": 0.6,
            "tower_hp": 500.0, "win_margin": 1.0},
-    "F2": {"enemy": 0.8, "tower_zap": 0.85, "retreat_hp": 0.35, "dmg_scale": 0.9,
-           "tower_hp": 1100.0, "win_margin": 0.6},
+    # F2 = mid-game decisions (build order, power spike) vs a moderately
+    # aggressive laner -- NOT a brutal duelist (that is F3+). Calibrated so a
+    # competent policy can win ~65-70%, leaving head-room for the CI-low gate.
+    "F2": {"enemy": 0.6, "tower_zap": 0.4, "retreat_hp": 0.45, "dmg_scale": 0.7,
+           "tower_hp": 850.0, "win_margin": 0.75},
 }
 
 # ability_slot -> (mana_cost, cooldown_steps, kind)

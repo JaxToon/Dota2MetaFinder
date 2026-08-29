@@ -40,10 +40,10 @@ reward:
 train:
   device: cpu
   horizon: 128
-  iterations: 150
-  eval_every: 15
+  iterations: 90
+  eval_every: 10
   init_from: runs/dota_rl_f1_baseline/checkpoints/ckpt_000140.pt
   f1_reference_winrate: 0.75
 evaluation:
-  games_per_opponent: 24
+  games_per_opponent: 30
   regression_threshold: 0.05

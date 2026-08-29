@@ -79,9 +79,17 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
     run_dir = Path(run_dir)
     seed = int(cfg.get("experiment", {}).get("seed", 42))
     seed_all(seed)
-    device = cfg.get("train", {}).get("device", "cpu")
-    if device == "cuda" and not torch.cuda.is_available():
+    # device: "cpu" (default) | "cuda" | "auto". At MVP scale the Python env sim
+    # is the bottleneck, not the ~2M-param net -- CUDA is ~a wash and pays
+    # per-step transfer overhead in the rollout (see README benchmark). Worth
+    # flipping to cuda only with a much larger model / batch (F4-F5).
+    device = str(cfg.get("train", {}).get("device", "cpu")).lower()
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif device == "cuda" and not torch.cuda.is_available():
+        print("train.device=cuda but no CUDA device found -> falling back to cpu")
         device = "cpu"
+    print(f"device: {device}")
 
     phase = cfg.get("experiment", {}).get("curriculum_phase", "F1")
     patch_id = cfg.get("experiment", {}).get("patch_id", "sandbox_mock_v1")

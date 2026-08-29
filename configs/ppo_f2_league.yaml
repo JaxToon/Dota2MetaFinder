@@ -1,62 +1,56 @@
-# F2 with self-play league (spec section 7 E1-E2).
-# The opponent is no longer only the scripted bot: each episode it is a frozen
-# copy of the current learner, a historical snapshot, or the scripted laner.
-# This removes the "safe-farm always wins" degenerate optimum -- a self-play
-# opponent farms and pushes too, so the agent must actually contest.
-# Evaluation + promotion gate still use the frozen scripted anchor (spec 9.2).
 experiment:
   name: dota_rl_f2_league
   seed: 42
   patch_id: sandbox_mock_v1
   curriculum_phase: F2
-
 environment:
   num_envs: 24
   max_steps: 500
   obs_schema_version: 1
   action_schema_version: 1
-
 model:
   encoder_dim: 256
   lstm_hidden: 256
-
 ppo:
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
   epochs: 4
   num_minibatches: 4
-  entropy_coef: 0.012
-  entropy_coef_final: 0.006
-  entropy_anneal: true
+  entropy_coef: 0.015
+  entropy_coef_final: 0.01
+  entropy_anneal: false
   value_coef: 0.5
   max_grad_norm: 0.5
-  lr: 0.0002
+  lr: 0.00015
   target_kl: 0.03
-
 reward:
   normalize: true
   clip: 5.0
   team_blend_tau: 0.0
   terminal_win: 12.0
-  enabled: {eco: true, xp: true, com: true, obj: true, str: true, shape: true, term: true}
-
+  enabled:
+    eco: true
+    xp: true
+    com: true
+    obj: true
+    str: true
+    shape: true
+    term: true
 league:
   enabled: true
-  ratio_self: 0.5
-  ratio_history: 0.3
-  ratio_scripted: 0.2
+  ratio_self: 0.3
+  ratio_history: 0.2
+  ratio_scripted: 0.5
   pool_capacity: 8
-  snapshot_every: 10
+  snapshot_every: 12
   pfsp: true
-
 train:
   device: cpu
   horizon: 128
-  iterations: 150
+  iterations: 120
   eval_every: 15
   init_from: runs/dota_rl_f1_baseline/checkpoints/ckpt_000140.pt
-
 evaluation:
   games_per_opponent: 24
   regression_threshold: 0.05
