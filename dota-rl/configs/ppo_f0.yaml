@@ -1,0 +1,48 @@
+# F0 -- pipeline validation (spec 8, 19). 1 hero, static dummy, no moving enemy.
+# Goal: reset/step correctness, action execution, reward observability.
+experiment:
+  name: dota_rl_f0_pipeline
+  seed: 42
+  patch_id: sandbox_mock_v1
+  curriculum_phase: F0
+
+environment:
+  num_envs: 16
+  max_steps: 200
+  obs_schema_version: 1
+  action_schema_version: 1
+
+model:
+  encoder_dim: 128
+  lstm_hidden: 128
+
+ppo:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  epochs: 3
+  num_minibatches: 4
+  entropy_coef: 0.02
+  entropy_coef_final: 0.01
+  entropy_anneal: true
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  lr: 0.0003
+  target_kl: 0.03
+
+reward:
+  normalize: true
+  clip: 5.0
+  team_blend_tau: 0.0
+  terminal_win: 10.0
+  enabled: {eco: true, xp: true, com: true, obj: false, str: true, term: true}
+
+train:
+  device: cpu
+  horizon: 96
+  iterations: 20
+  eval_every: 10
+
+evaluation:
+  games_per_opponent: 16
+  regression_threshold: 0.05

@@ -1,0 +1,49 @@
+# F1 -- 1v1 mid, scripted opponent (spec 8, 19).
+# Goal: last-hit, deny, survival, combat efficiency, winrate vs fixed bot.
+experiment:
+  name: dota_rl_f1_baseline
+  seed: 42
+  patch_id: sandbox_mock_v1
+  curriculum_phase: F1
+
+environment:
+  num_envs: 24
+  max_steps: 400
+  obs_schema_version: 1
+  action_schema_version: 1
+
+model:
+  encoder_dim: 256
+  lstm_hidden: 256
+
+ppo:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  epochs: 4
+  num_minibatches: 4
+  entropy_coef: 0.02
+  entropy_coef_final: 0.008
+  entropy_anneal: true
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  lr: 0.0003
+  target_kl: 0.03
+
+reward:
+  normalize: true
+  clip: 5.0
+  team_blend_tau: 0.0
+  terminal_win: 10.0
+  # obj carries a small per-step time cost so passive farming is not optimal (spec 6)
+  enabled: {eco: true, xp: true, com: true, obj: true, str: true, term: true}
+
+train:
+  device: cpu
+  horizon: 128
+  iterations: 140
+  eval_every: 20
+
+evaluation:
+  games_per_opponent: 24
+  regression_threshold: 0.05

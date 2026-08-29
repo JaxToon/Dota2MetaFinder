@@ -1,0 +1,10 @@
+# Evaluation harness config (spec 9).
+evaluation:
+  phase: F1
+  games_per_opponent: 30
+  deterministic: true
+  regression_threshold: 0.05
+  # frozen regression seeds vs a rotating set to catch benchmark overfitting
+  regression_seed_range: [9000, 9030]
+  rotating_seed_base: 20000
+  opponents: [scripted, random]

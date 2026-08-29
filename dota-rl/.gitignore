@@ -1,0 +1,110 @@
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Packaging / build
+build/
+dist/
+wheels/
+*.egg
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+MANIFEST
+
+# ---------------------------------------------------------------------------
+# Virtual environments
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---------------------------------------------------------------------------
+# Testing / coverage / linters / type checkers
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.cover
+nosetests.xml
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Jupyter / IPython
+# ---------------------------------------------------------------------------
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# ---------------------------------------------------------------------------
+# RL / experiment artifacts
+# training output lives in runs/ : metrics.jsonl, checkpoints/, tb/, gate files
+# ---------------------------------------------------------------------------
+runs/
+outputs/
+logs/
+checkpoints/
+wandb/
+mlruns/
+lightning_logs/
+tb/
+tensorboard/
+events.out.tfevents.*
+
+# Model weights (belong in a model registry, not git)
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pkl
+*.h5
+*.safetensors
+
+# ---------------------------------------------------------------------------
+# Project-specific
+# output of scripts/api_probe.lua (milestone M0)
+# ---------------------------------------------------------------------------
+api_probe_result.json
+*.log
+
+# ---------------------------------------------------------------------------
+# Secrets / local config
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+
+# ---------------------------------------------------------------------------
+# Editors / IDEs
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
