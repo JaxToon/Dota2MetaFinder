@@ -1,0 +1,386 @@
+<title>Dota 2 Draft Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+:root{
+  --ground:#eef0ec;--panel:#f8f9f6;--panel-2:#f1f3ef;--ink:#1a231e;--muted:#5c6b62;
+  --line:#d5dbd2;--line-strong:#c1c9bf;--gold:#a9781f;--gold-tint:#f2e9d6;
+  --up:#2f8e73;--down:#c05f42;--bar:rgba(169,120,31,.15);
+  --str:#c65b3c;--agi:#3f9d57;--int:#3b82c4;
+  --hi:#a9781f;--hi-bg:#f2e9d6;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0e1613;--panel:#151f1b;--panel-2:#101a16;--ink:#dde5df;--muted:#8a9790;
+  --line:#25322c;--line-strong:#33443c;--gold:#d9a441;--gold-tint:#22261b;
+  --up:#4bb391;--down:#d17a5c;--bar:rgba(217,164,65,.12);
+  --str:#e07a5a;--agi:#5cbf74;--int:#5aa0e0;
+  --hi:#d9a441;--hi-bg:#26261a;
+}}
+:root[data-theme="dark"]{
+  --ground:#0e1613;--panel:#151f1b;--panel-2:#101a16;--ink:#dde5df;--muted:#8a9790;
+  --line:#25322c;--line-strong:#33443c;--gold:#d9a441;--gold-tint:#22261b;
+  --up:#4bb391;--down:#d17a5c;--bar:rgba(217,164,65,.12);
+  --str:#e07a5a;--agi:#5cbf74;--int:#5aa0e0;--hi:#d9a441;--hi-bg:#26261a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:400 15px/1.55 "Newsreader",Georgia,serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:"Barlow Condensed",sans-serif;margin:0;font-weight:700;text-wrap:balance}
+h1{font-size:clamp(2.1rem,5vw,2.8rem);line-height:1}
+h2{font-size:1.35rem;letter-spacing:.01em}
+h3{font-size:1rem;font-weight:600}
+.eyebrow{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.13em;font-size:.72rem;color:var(--muted)}
+
+header{border-bottom:1px solid var(--line-strong);padding:34px 0 24px}
+header .row{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header p{margin:8px 0 0;color:var(--muted);font-size:.92rem;max-width:52ch}
+.stamp{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--muted);text-align:right;line-height:1.7}
+
+/* pick area */
+.board{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:26px 0}
+.side{background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;padding:14px 16px 16px}
+.side.ally{border-left:3px solid var(--up)}
+.side.enemy{border-left:3px solid var(--down)}
+.side h2{display:flex;align-items:baseline;gap:8px}
+.side h2 span{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted);font-weight:400}
+.slots{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;min-height:34px}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line-strong);
+  border-radius:3px;padding:4px 6px 4px 9px;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:.92rem;cursor:default}
+.pill i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.pill.str i{background:var(--str)}.pill.agi i{background:var(--agi)}.pill.int i{background:var(--int)}
+.pill b{cursor:pointer;color:var(--muted);font-weight:700;padding:0 2px;font-family:"IBM Plex Mono",monospace}
+.pill b:hover{color:var(--down)}
+input[type=search]{width:100%;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;
+  color:var(--ink);font:400 .92rem "IBM Plex Mono",monospace;padding:8px 10px}
+input[type=search]:focus{outline:2px solid var(--gold);outline-offset:1px}
+.opts{max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-2)}
+.opts button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);
+  font:400 .9rem "Barlow Condensed",sans-serif;font-weight:600;padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
+.opts button:last-child{border-bottom:0}
+.opts button:hover,.opts button.on{background:var(--bar)}
+.opts button small{color:var(--muted);font-family:"IBM Plex Mono",monospace;font-weight:400;font-size:.72rem;float:right}
+
+.mine{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;padding:6px 0 30px}
+.mine .f{flex:1;min-width:180px}
+.mine label{display:block}
+select{width:100%;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink);
+  font:400 .92rem "IBM Plex Mono",monospace;padding:8px 10px}
+.clearbtn{background:none;border:1px solid var(--line-strong);border-radius:4px;color:var(--muted);
+  font:600 .8rem "Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:8px 14px;cursor:pointer}
+.clearbtn:hover{color:var(--down);border-color:var(--down)}
+
+/* results */
+.results{padding:8px 0 40px;display:grid;gap:22px}
+.card{background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;padding:18px 20px 22px}
+.card > .eyebrow{display:block;border-bottom:1px solid var(--line-strong);padding-bottom:8px;margin-bottom:14px}
+.empty{color:var(--muted);font-size:.95rem}
+
+.rec{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.rec:first-child{border-top:0}
+.rec .nm{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:1.05rem}
+.rec .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:.66rem;padding:1px 5px;border-radius:2px;background:var(--bar);color:var(--muted)}
+.chip.pos{color:var(--up)}.chip.neg{color:var(--down)}
+.rec .sc{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:1rem}
+
+.stage{margin:12px 0}
+.stage .lbl{font-family:"Barlow Condensed",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.74rem;color:var(--gold)}
+.stage .its{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.it{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:.9rem;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:3px;padding:3px 8px}
+
+.sit{padding:11px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:180px 1fr;gap:14px}
+.sit:first-of-type{border-top:0}
+.sit .head{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1rem}
+.sit .u{display:block;font-family:"IBM Plex Mono",monospace;font-weight:400;font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.sit.high .u{color:var(--down)} .sit.consider .u{color:var(--gold)} .sit.note .u{color:var(--muted)}
+.sit .why{font-size:.94rem;color:var(--ink)}
+
+.lanebar{display:flex;gap:4px;margin:10px 0 4px}
+.lanebar div{flex:1;text-align:center;padding:7px 4px;border:1px solid var(--line-strong);border-radius:3px;background:var(--panel-2)}
+.lanebar div.top{border-color:var(--gold);background:var(--hi-bg)}
+.lanebar .r{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:.9rem;text-transform:capitalize}
+.lanebar .w{font-family:"IBM Plex Mono",monospace;font-size:.74rem;color:var(--muted)}
+.notes{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{font-size:.95rem;padding-left:16px;position:relative}
+.notes li::before{content:"›";position:absolute;left:0;color:var(--gold);font-family:"IBM Plex Mono",monospace}
+.notes b{color:var(--gold);font-weight:500}
+
+footer{border-top:1px solid var(--line);padding:24px 0 60px;color:var(--muted);font:400 .8rem "IBM Plex Mono",monospace}
+footer .wrap{max-width:76ch}
+
+@media (max-width:720px){
+  .board{grid-template-columns:1fr}
+  .sit{grid-template-columns:1fr;gap:3px}
+  .rec{grid-template-columns:1fr}
+}
+</style>
+
+<header><div class="wrap"><div class="row">
+  <div>
+    <span class="eyebrow">Draft coach</span>
+    <h1>Dota&nbsp;2 Draft Coach</h1>
+    <p>Enter both lineups. Get hero picks, an item build, and lane advice &mdash; all reacting to the specific heroes on each side. From public match data.</p>
+  </div>
+  <div class="stamp" id="stamp"></div>
+</div></div></header>
+
+<div class="wrap">
+  <div class="board">
+    <div class="side ally">
+      <h2>Your team <span id="ac">0/5</span></h2>
+      <div class="slots" id="aslots"></div>
+      <input type="search" id="asearch" placeholder="add ally hero..." autocomplete="off">
+      <div class="opts" id="aopts" hidden></div>
+    </div>
+    <div class="side enemy">
+      <h2>Enemy team <span id="ec">0/5</span></h2>
+      <div class="slots" id="eslots"></div>
+      <input type="search" id="esearch" placeholder="add enemy hero..." autocomplete="off">
+      <div class="opts" id="eopts" hidden></div>
+    </div>
+  </div>
+
+  <div class="mine">
+    <div class="f"><label class="eyebrow" for="mh">The hero you're playing</label>
+      <select id="mh"><option value="">— not decided (show pick suggestions) —</option></select></div>
+    <div class="f" style="max-width:200px"><label class="eyebrow" for="mr">Your role</label>
+      <select id="mr">
+        <option value="">any</option><option value="carry">carry / safelane</option>
+        <option value="mid">mid</option><option value="offlane">offlane</option>
+        <option value="support">support</option><option value="hard_support">hard support</option>
+      </select></div>
+    <button class="clearbtn" id="clear">reset</button>
+  </div>
+
+  <div class="results" id="results"></div>
+</div>
+
+<footer><div class="wrap">
+  Hero picks &amp; synergy come straight from public match data (OpenDota, <span id="fmatch"></span> matches, Divine bracket). Item &amp; lane advice = the hero's popular build + a rules layer keyed on the enemy/ally tags you entered (heavy magic &rarr; Pipe, hard lockdown &rarr; BKB, invis &rarr; sentries&hellip;). Directional, not gospel &mdash; the meta moves every patch.
+</div></footer>
+
+<script id="DATA" type="application/json">/*__DATA__*/null</script>
+<script>
+const DATA = JSON.parse(document.getElementById('DATA').textContent);
+const HById={}, HList=DATA.heroes.slice().sort((a,b)=>a.name.localeCompare(b.name));
+HList.forEach(h=>HById[h.id]=h);
+const state={allies:[],enemies:[],myHero:'',myRole:''};
+
+document.getElementById('stamp').innerHTML =
+  `data ${DATA.generated}<br>${DATA.matches.toLocaleString()} matches<br>${DATA.bracket} bracket`;
+document.getElementById('fmatch').textContent = DATA.matches.toLocaleString();
+
+const mh=document.getElementById('mh');
+HList.forEach(h=>{const o=document.createElement('option');o.value=h.id;o.textContent=h.name;mh.appendChild(o);});
+
+const T = {win:id=>(DATA.tier[id]||{}).win_rate??0.5, tier:id=>(DATA.tier[id]||{}).tier||'?'};
+const ctr=(a,b)=>((DATA.counter[a]||{})[b])||0;
+const syn=(a,b)=>((DATA.synergy[a]||{})[b])||0;
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const tagCounts=ids=>{const c={};ids.forEach(i=>HById[i].tags.forEach(t=>c[t]=(c[t]||0)+1));return c;};
+const withTag=(ids,t)=>ids.filter(i=>HById[i].tags.includes(t)).map(i=>HById[i].name);
+const label=t=>DATA.tag_labels[t]||t;
+
+/* ---------- picker wiring ---------- */
+function picker(side){
+  const S=side==='allies'?'a':'e';
+  const search=document.getElementById(S+'search'), opts=document.getElementById(S+'opts');
+  const render=()=>{
+    const q=search.value.trim().toLowerCase();
+    const taken=new Set([...state.allies,...state.enemies]);
+    const hits=HList.filter(h=>!taken.has(h.id)&&h.name.toLowerCase().includes(q)).slice(0,40);
+    opts.innerHTML=hits.map(h=>`<button data-id="${h.id}">${h.name}<small>${T.tier(h.id)} · ${(T.win(h.id)*100).toFixed(1)}%</small></button>`).join('');
+    opts.hidden=!hits.length||document.activeElement!==search;
+  };
+  search.addEventListener('input',render);
+  search.addEventListener('focus',render);
+  search.addEventListener('blur',()=>setTimeout(()=>opts.hidden=true,150));
+  opts.addEventListener('mousedown',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    const arr=state[side];
+    if(arr.length<5) arr.push(+b.dataset.id);
+    search.value=''; render(); update();
+  });
+}
+picker('allies'); picker('enemies');
+
+function slots(){
+  for(const [side,el] of [['allies','aslots'],['enemies','eslots']]){
+    document.getElementById(el).innerHTML=state[side].map(id=>{
+      const h=HById[id];
+      return `<span class="pill ${h.attr}"><i></i>${h.name}<b data-side="${side}" data-id="${id}">×</b></span>`;
+    }).join('');
+  }
+  document.getElementById('ac').textContent=state.allies.length+'/5';
+  document.getElementById('ec').textContent=state.enemies.length+'/5';
+}
+document.querySelector('.wrap').addEventListener('click',e=>{
+  const b=e.target.closest('.pill b'); if(!b)return;
+  state[b.dataset.side]=state[b.dataset.side].filter(x=>x!=b.dataset.id); update();
+});
+mh.addEventListener('change',()=>{state.myHero=mh.value;update();});
+document.getElementById('mr').addEventListener('change',e=>{state.myRole=e.target.value;update();});
+document.getElementById('clear').addEventListener('click',()=>{
+  state.allies=[];state.enemies=[];state.myHero='';state.myRole='';
+  mh.value='';document.getElementById('mr').value='';update();
+});
+
+/* ---------- engines ---------- */
+function recommend(){
+  const taken=new Set([...state.allies,...state.enemies]);
+  const roleWant={carry:['Carry'],mid:['Nuker','Carry'],offlane:['Initiator','Durable'],
+    support:['Support'],hard_support:['Support','Disabler']}[state.myRole]||[];
+  const W={meta:1.0,syn:1.4,ctr:1.2,vuln:1.0,role:0.6};
+  const out=[];
+  for(const h of HList){
+    if(taken.has(h.id)||!DATA.tier[h.id])continue;
+    const m=T.win(h.id)-0.5;
+    const s=state.allies.length?avg(state.allies.map(a=>syn(h.id,a))):0;
+    const c=state.enemies.length?avg(state.enemies.map(e=>ctr(h.id,e))):0;
+    const v=state.enemies.length?avg(state.enemies.map(e=>ctr(e,h.id))):0;
+    const rf=roleWant.length?(roleWant.some(r=>h.roles.includes(r))?0.5:-0.15):0;
+    const score=W.meta*m+W.syn*s+W.ctr*c-W.vuln*v+W.role*rf;
+    const notes=[];
+    if(state.enemies.length){
+      const best=state.enemies.map(e=>[e,ctr(h.id,e)]).sort((a,b)=>b[1]-a[1])[0];
+      const worst=state.enemies.map(e=>[e,ctr(h.id,e)]).sort((a,b)=>a[1]-b[1])[0];
+      if(best[1]>0.03)notes.push({t:`beats ${HById[best[0]].name} +${best[1].toFixed(2)}`,c:'pos'});
+      if(worst[1]<-0.03)notes.push({t:`loses to ${HById[worst[0]].name} ${worst[1].toFixed(2)}`,c:'neg'});
+    }
+    if(state.allies.length){
+      const bp=state.allies.map(a=>[a,syn(h.id,a)]).sort((x,y)=>y[1]-x[1])[0];
+      if(bp[1]>0.02)notes.push({t:`+ ${HById[bp[0]].name} ${bp[1]>=0?'+':''}${bp[1].toFixed(2)}`,c:'pos'});
+    }
+    out.push({h,score,m,s,c,v,notes});
+  }
+  return out.sort((a,b)=>b.score-a.score).slice(0,9);
+}
+
+const ME=id=>{
+  const h=HById[id], r=new Set(h.roles), tg=new Set(h.tags);
+  const core=[...r].some(x=>['Carry','Nuker'].includes(x))||r.has('Pusher');
+  const front=[...r].some(x=>['Durable','Initiator'].includes(x))||tg.has('tanky');
+  const caster=r.has('Nuker')||(tg.has('magic_burst')&&!r.has('Carry'));
+  const support=r.has('Support')&&!r.has('Carry');
+  return {core,support,front,physical:tg.has('physical_carry'),caster,
+    squishy:!front&&(support||(caster&&!core)),
+    canInit:tg.has('brings_initiation')||r.has('Initiator')};
+};
+
+function situational(id){
+  const me=ME(id), et=tagCounts(state.enemies), at=tagCounts(state.allies), rec=[];
+  const add=(item,why,u='consider')=>rec.push({item,why,u});
+  const eMagic=[...new Set([...withTag(state.enemies,'magic_burst'),...withTag(state.enemies,'brings_aoe')])];
+  if(eMagic.length>=2){
+    const who=eMagic.slice(0,3).join(', ');
+    if(me.front||me.core)add('Pipe of Insight',`${eMagic.length} magic threats (${who}) — Pipe shields the team`,eMagic.length>=3?'high':'consider');
+    if(me.squishy)add('Glimmer Cape',`heavy magic burst (${who}) — dodge the combo`,eMagic.length>=3?'high':'consider');
+    add('Hood / Eternal Shroud','cheap early magic resist vs the nuke lineup');
+  }
+  if((et.hard_lockdown||0)+(et.aoe_disable||0)>=1 && (me.core||me.caster)){
+    const who=withTag(state.enemies,'hard_lockdown').slice(0,3).join(', ');
+    add('Black King Bar',`hard disables (${who||'in the lineup'}) — fight through them`,(et.hard_lockdown||0)>=2?'high':'consider');
+    if(me.squishy)add('Lotus Orb / Aeon Disk','single-target lockdown on you — reactive dispel / survive');
+  }
+  if((et.invisibility||0)>=1){
+    const who=withTag(state.enemies,'invisibility').slice(0,3).join(', ');
+    add('Sentries + Dust',`enemy invisibility (${who}) — carry detection`,'high');
+    if(me.core)add('Gem of True Sight',`${who} — a Gem removes the invis hero from the game`);
+  }
+  if((et.physical_carry||0)>=2 && (me.front||me.support))
+    add(me.front?'Assault Cuirass / Shiva':'Ghost Scepter / Solar Crest',`${et.physical_carry} right-click cores — armor / kite`);
+  if((et.grants_evasion||0)>=1 && me.physical) add('Monkey King Bar','enemy evasion — guarantee your hits','high');
+  if((et.team_heal||0)+(et.lifesteal_sustain||0)>=2){
+    const who=[...new Set([...withTag(state.enemies,'team_heal'),...withTag(state.enemies,'lifesteal_sustain')])].slice(0,3).join(', ');
+    add(me.support?'Spirit Vessel':'Break / heal reduction',`enemy sustain (${who}) — cut their healing`);
+  }
+  if((et.summons_push||0)>=2 && me.front) add('Crimson Guard',`${et.summons_push} summon/illusion heroes — eats the chip damage`);
+  if((et.silence||0)+(et.mana_burn||0)>=1 && me.caster) add("Eul's / Manta",'silence or mana burn on your spells — dispel keeps you casting');
+  if((et.blink_pickoff||0)>=1 && (me.squishy)){
+    const who=withTag(state.enemies,'blink_pickoff').slice(0,2).join(', ');
+    add('Force Staff / Aeon Disk',`blink pickoff threat (${who}) — a get-out button`);
+  }
+  if((et.break||0)>=1 && (new Set(HById[id].tags)).has('grants_evasion')||((et.break||0)>=1&&new Set(HById[id].tags).has('lifesteal_sustain')))
+    add("don't build around your passive",'enemy has Break — value active items','note');
+  if(state.allies.length && !(at.brings_initiation) && me.canInit)
+    add('Blink Dagger','no reliable initiation on your team — you start the fights','high');
+  if(state.allies.length && !(at.brings_save) && me.support)
+    add('Force Staff / Glimmer','no save in your lineup — bring one for the cores');
+  if(state.allies.length && !(at.brings_dispel) && (et.silence||0)+(et.hard_lockdown||0)>=2)
+    add('Lotus Orb / Greaves','enemy control + your team has no dispel');
+  const ord={high:0,consider:1,note:2}, best={};
+  rec.forEach(r=>{if(!best[r.item]||ord[r.u]<ord[best[r.item].u])best[r.item]=r;});
+  return Object.values(best).sort((a,b)=>ord[a.u]-ord[b.u]).slice(0,7);
+}
+
+function laneAdvice(id){
+  const rows=(DATA.lanes[id]||[]).filter(r=>r.games>=8).slice().sort((a,b)=>b.games-a.games);
+  const main=rows[0];
+  const tough=[],fav=[];
+  state.enemies.forEach(e=>{const a=ctr(id,e); if(a<=-0.03)tough.push([HById[e].name,a]); else if(a>=0.03)fav.push([HById[e].name,a]);});
+  tough.sort((x,y)=>x[1]-y[1]); fav.sort((x,y)=>y[1]-x[1]);
+  const notes=[];
+  if(main)notes.push(`Usually goes <b>${main.role}</b>${main.win_rate?` (${(main.win_rate*100).toFixed(0)}% win rate there)`:''}.`);
+  const et=tagCounts(state.enemies);
+  if((et.hard_lockdown||0)+(et.aoe_disable||0)>=2)
+    notes.push('Enemy has multiple disables — expect an aggressive lane or trilane; ward deep, don\'t greed last hits at low HP.');
+  const roam=withTag(state.enemies,'very_mobile');
+  if(roam.length>=2)notes.push(`Mobile enemies (${roam.slice(0,3).join(', ')}) roam early — keep vision on runes and your jungle.`);
+  if(tough.length)notes.push(`Rough lane matchup${tough.length>1?'s':''}: ${tough.slice(0,3).map(([n,a])=>`${n} (${a.toFixed(2)})`).join(', ')} — try to lane away from ${tough.length>1?'them':tough[0][0]}.`);
+  if(fav.length)notes.push(`You win the 1v1 vs ${fav.slice(0,3).map(([n,a])=>`${n} (+${a.toFixed(2)})`).join(', ')}.`);
+  return {rows,main,notes};
+}
+
+/* ---------- render ---------- */
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function update(){
+  slots();
+  const R=document.getElementById('results');
+  R.innerHTML='';
+  if(!state.myHero){
+    const recs=recommend();
+    R.appendChild(card('Pick suggestions', state.enemies.length||state.allies.length
+      ? recs.map(r=>`<div class="rec">
+          <div><div class="nm">${r.h.name} <span class="mono" style="color:var(--muted);font-size:.7rem">${T.tier(r.h.id)}</span></div>
+          <div class="chips">${chip('meta',r.m)}${state.allies.length?chip('synergy',r.s):''}${state.enemies.length?chip('counter',r.c):''}
+          ${r.notes.map(n=>`<span class="chip ${n.c}">${esc(n.t)}</span>`).join('')}</div></div>
+          <div class="sc">${r.score>=0?'+':''}${r.score.toFixed(2)}</div></div>`).join('')
+      : '<p class="empty">Add at least one enemy or ally hero to get ranked suggestions.</p>')
+      + '<p class="empty mono" style="margin-top:14px;font-size:.72rem">score = meta win + synergy with allies + advantage vs enemies − how hard enemies counter you + role fit</p>');
+    return;
+  }
+  const id=+state.myHero, h=HById[id];
+  // build
+  const b=DATA.builds[id]||{};
+  const stageName={start:'Starting items',early:'Early game',mid:'Mid game',late:'Late / luxury'};
+  let bh=Object.entries(stageName).map(([k,lbl])=>{
+    const its=(b[k]||[]).map(x=>`<span class="it">${esc(x.item)}</span>`).join('');
+    return its?`<div class="stage"><div class="lbl">${lbl}</div><div class="its">${its}</div></div>`:'';
+  }).join('');
+  const sit=situational(id);
+  if(sit.length) bh+=`<div class="stage"><div class="lbl">Situational — vs this lineup</div></div>`+
+    sit.map(s=>`<div class="sit ${s.u}"><div class="head">${esc(s.item)}<span class="u">${s.u==='note'?'note':s.u}</span></div><div class="why">${esc(s.why)}</div></div>`).join('');
+  else bh+=`<p class="empty" style="margin-top:10px">Add enemy heroes to get situational item calls.</p>`;
+  R.appendChild(card(`Build — ${h.name}`, bh));
+  // lane
+  const L=laneAdvice(id);
+  let lh='';
+  if(L.rows.length){
+    lh+='<div class="lanebar">'+L.rows.map(r=>`<div class="${r===L.main?'top':''}"><div class="r">${r.role}</div><div class="w">${(r.win_rate*100).toFixed(0)}% · ${r.games}g</div></div>`).join('')+'</div>';
+  }
+  lh+='<ul class="notes">'+L.notes.map(n=>`<li>${n}</li>`).join('')+'</ul>';
+  R.appendChild(card(`Lane — ${h.name}`, lh));
+}
+function card(title,html){
+  const d=document.createElement('div');d.className='card';
+  d.innerHTML=`<span class="eyebrow">${title}</span>${html}`;return d;
+}
+function chip(kind,v){
+  const cls=v>0.005?'pos':v<-0.005?'neg':'';
+  return `<span class="chip ${cls}">${kind} ${v>=0?'+':''}${v.toFixed(2)}</span>`;
+}
+update();
+</script>

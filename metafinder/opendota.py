@@ -107,5 +107,17 @@ def public_matches(less_than_match_id: int | None = None,
     return get("/publicMatches", p, max_age=365 * 86400)   # immutable once fetched
 
 
-def scenarios_lane_roles() -> list[dict]:
-    return get("/scenarios/laneRoles", max_age=6 * 3600)
+def scenarios_lane_roles(hero_id: int | None = None) -> list[dict]:
+    p = {"hero_id": hero_id} if hero_id else None
+    return get("/scenarios/laneRoles", p, max_age=3 * 86400)
+
+
+def item_popularity(hero_id: int) -> dict:
+    """{start_game_items, early_game_items, mid_game_items, late_game_items} ->
+    {item_id: count}."""
+    return get(f"/heroes/{hero_id}/itemPopularity", max_age=3 * 86400)
+
+
+def item_constants() -> dict:
+    """item key -> {id, dname, cost, qual, ...}."""
+    return get("/constants/items", max_age=30 * 86400)
