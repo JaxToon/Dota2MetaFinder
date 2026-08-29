@@ -1,203 +1,91 @@
-# Dota 2 RL & Meta-Discovery System
+# Dota 2 Meta Finder
 
-Reinforcement-learning research sandbox for Dota 2: train an agent that not only
-learns to win but discovers **new meta, power spikes, efficient item/skill
-orders, and optimal fight tactics** — in an offline research environment.
+Empirical Dota 2 meta analysis from **public match data** (OpenDota). Answers the
+draft-and-macro questions:
 
-> ⚠️ **Scope: sandbox / offline research only.** Automated play in public/ranked
-> matches violates Valve Anti-Cheat / ToS and risks a permanent ban. This project
-> never touches a live match — local custom lobby / simulator only.
-> ([blueprint §0](docs/Blueprint_RL_Dota2_Revisi.md))
+- **Tier list** — hero win / pick rates by rank bracket, this patch
+- **Counters** — hero-vs-hero head-to-head advantage (who beats who)
+- **Synergy** — hero-pair win rate *above* what the two heroes do solo
+- **Comp scoring** — rate a full 5-stack: meta strength, synergy, role coverage
+- **Next-pick recommendation** — given picks / bans so far and your role
 
-Core principle from the spec: *environment correctness first, model complexity
-later, measurement-driven scaling.* The MVP therefore stops at curriculum
-**F0–F2**, runs on a **custom simulator** ([`dota_rl/env/mock_env.py`](dota_rl/env/mock_env.py))
-rather than the Dota client, and treats the real-client path as a gated
-follow-up (Milestone M0).
+> Read-only, official [OpenDota API](https://docs.opendota.com/). No automated
+> play, no scraping. Standard-library Python only (`urllib`, `sqlite3`).
 
----
-
-## Repository layout
-
-```
-.
-├── docs/
-│   ├── Blueprint_RL_Dota2_Revisi.md                  source blueprint (ID)
-│   └── Dota2_RL_Technical_Development_Specification.pdf  engineering spec (24 §)
-├── dota_rl/                     the package
-│   ├── env/          obs/action/mask contract, reward, patch manifest, mock 1v1 sim
-│   │                 (opponent = scripted OR any policy via mirrored obs)
-│   ├── agents/       PPO+LSTM masked multi-head policy, attention encoder, embeddings
-│   ├── training/     rollout · GAE · PPO (TBPTT) · checkpoints · gates · league · patch pipeline
-│   ├── evaluation/   Wilson-CI winrate · Elo · regression gate · baselines
-│   ├── analytics/    build order · ability timing · power spikes · heatmaps · matched dV
-│   ├── transport/    Lua↔Python bridge (stub) + protobuf schema
-│   └── utils/        config loading, seeding
-├── configs/          ppo_f0/f1/f2.yaml · ppo_f2_league.yaml · env.yaml · eval.yaml
-├── scripts/          train.py · evaluate.py · meta_report.py · patch_diff.py · api_probe.lua
-├── dota2/scripts/vscripts/bots/   Lua harvester + action handler (stub; mirrors the
-│                                  real install path)
-├── tests/            30 tests (spec §13)
-└── runs/             training output (git-ignored)
-```
-
----
-
-## Current results (mock env, CPU)
-
-| Phase | Config | Promotion gate | Result |
-|---|---|---|---|
-| **F0** pipeline validation | `configs/ppo_f0.yaml` | ✅ **PASS** | valid transitions 1.000, invalid-action rate 0.000, reward observable |
-| **F1** 1v1 basic skill | `configs/ppo_f1.yaml` | ✅ **PASS** | winrate vs scripted **0.75** (CI 0.55–0.88), beats random baseline, K/D 0/0.5, stable across frozen + rotating seeds |
-| **F2** 1v1 full (build order / power spike) | `configs/ppo_f2.yaml` | ✅ **PASS** | fine-tunes from F1 in ~40 iters to **1.00** winrate vs scripted (CI 0.89–1.00); **no F1 regression** (F1 held at 0.93); build progression ✅ |
-
-The whole MVP curriculum F0–F2 now clears its gates. Runs auto-roll-back to the
-best checkpoint by winrate before gating (spec §10 step 12 / §14).
-
-**Self-play / league** (`configs/ppo_f2_league.yaml`) is implemented and tested
-but is a *robustness* add-on, not needed to pass F2. Naive self-play alone drifts
-away from the scripted benchmark (documented finding — the opponent-mix ratio is
-an open experiment variable, spec §7).
-
----
-
-## What the F2 agent learned (spec §15)
-
-`scripts/meta_report.py` on the F2 champion (60 deterministic episodes) →
-[full JSON](docs/f2_meta_report.json) · **visual debrief:
-[F2 Lane Debrief](https://claude.ai/code/artifact/6d635164-e20a-4b2c-b06f-bdfa09683bc6)**
-
-- **Hold mid, win on economy.** Occupancy collapses onto the creep line; 0 hero
-  kills/episode; every win is a net-worth + survival lead at the time limit.
-- **Level-7 burst is the power spike.** `ability_2` into a <45%-HP enemy is the
-  only combat action worth a large positive ΔV (**+0.53** vs matched baseline).
-- **Early aggression is punished.** `ability_0` at level 1 / even HP costs
-  **−1.27** V(s); the agent already suppresses it (3 casts/ep).
-- **Sustain > trades.** Heal ability + heal item spammed on cooldown, both +ΔV.
-- **Open question:** it engages at a *lower* mean HP advantage (+0.36) than it
-  passes at (+0.44) — a candidate for an F3 objective / shaped penalty.
-
----
-
-## Spec § → module
-
-| Spec area | Module | Status |
-|---|---|---|
-| §4 Environment contract (obs/action/mask schema, versioning) | `dota_rl/env/protocol.py`, `observation.py`, `action.py`, `masks.py` | ✅ |
-| §6 Reward system (z-score + clip + terminal + potential shaping + team-blend τ) | `dota_rl/env/reward.py` | ✅ |
-| §0/§5 Custom simulator, curriculum F0–F2, scripted opponent | `dota_rl/env/mock_env.py` | ✅ |
-| §5 PPO + LSTM, masked multi-head policy, attention set encoder | `dota_rl/agents/` | ✅ |
-| §5.3 Attribute-style hero/item embeddings | `dota_rl/agents/embeddings.py` | ✅ (architectural compat; not zero-shot optimality) |
-| §10 Rollout → GAE (terminal/bootstrap masks) → PPO (TBPTT) | `dota_rl/training/` | ✅ |
-| §8 Multidimensional promotion gates | `dota_rl/training/promotion.py` | ✅ |
-| §9 Eval harness: winrate + Wilson CI + Elo + regression gate + auto-rollback | `dota_rl/evaluation/` | ✅ |
-| §12 Checkpoint registry (model/config/git/patch hashes) | `dota_rl/training/checkpointing.py` | ✅ |
-| §14 Observability (JSONL + optional TensorBoard) | `dota_rl/training/train.py` | ✅ |
-| §15 Event-aligned value-head meta analytics | `dota_rl/analytics/value_events.py` | ✅ |
-| §4.3 Curriculum transfer / fine-tune (`train.init_from`) | `dota_rl/training/train.py` | ✅ |
-| §7 Self-play (E1) + historical league pool with PFSP (E2) | `dota_rl/training/league.py` | ✅ |
-| §16 Patch-resilience pipeline (manifest diff · numeric/structural routing · approval gate · fine-tune · rollback) | `dota_rl/env/patch.py`, `dota_rl/training/patch_pipeline.py` | ✅ |
-| §7 RND curiosity (E3–E4) | — | ⏳ |
-| §3.1 Real Dota adapter — protocol, wire→contract parsing, `reset()/step()` | `dota_rl/env/dota_adapter.py`, `dota_rl/transport/zmq_bridge.py` | ✅ code + tests (in-process bridge); needs [M0 manual steps](docs/M0_real_adapter.md): API probe → Lua bot → point learner at adapter |
+The reinforcement-learning sandbox from the original project spec is archived on
+the **`archive/rl-sandbox`** branch (tag `rl-sandbox-v1`) — see
+[why](#why-not-reinforcement-learning) below.
 
 ---
 
 ## Quick start
 
 ```bash
-python -m venv .venv && .venv\Scripts\activate       # Windows
-pip install -r requirements.txt
+python scripts/fetch.py                      # warm the cache (~3 min first run)
 
-python scripts/train.py configs/ppo_f0.yaml          # F0: pipeline validation
-python scripts/train.py configs/ppo_f1.yaml          # F1: 1v1 basic skill
-python scripts/train.py configs/ppo_f2.yaml          # F2: 1v1 full (transfers from F1)
+python scripts/tierlist.py --bracket divine
+python scripts/tierlist.py --bracket archon --role Support --top 20
 
-# overrides
-python scripts/train.py configs/ppo_f1.yaml --set ppo.lr=1e-4 train.iterations=120
+# "we have CM, they have AM + Sniper, I'm mid — what do I pick?"
+python scripts/draft.py --allies "Crystal Maiden" --enemies "Anti-Mage,Sniper" --role mid
 
-# evaluate a checkpoint on the frozen + rotating benchmark
-python scripts/evaluate.py    runs/dota_rl_f1_baseline/checkpoints/ckpt_000140.pt
+# rate a full comp
+python scripts/draft.py --comp "Mars,Zeus,Juggernaut,Crystal Maiden,Hoodwink"
 
-# event-aligned meta / power-spike report
-python scripts/meta_report.py runs/dota_rl_f2_build/checkpoints/ckpt_000040.pt --json report.json
+python scripts/meta.py --bracket divine --json meta.json   # full report
 
-# patch detected -> classify -> auto fine-tune / approval gate / rollback (spec §16)
-python scripts/patch_diff.py --mutate "hero.attack_damage=26" \
-    --migrate runs/dota_rl_f2_build/checkpoints/ckpt_000040.pt
-
-python -m pytest                                     # spec §13 test suite (40 tests)
+python -m pytest                             # 7 tests, no network (synthetic data)
 ```
 
-Each run writes `runs/<name>/`: `metrics.jsonl`, `tb/` (TensorBoard),
-`checkpoints/` (+ `index.json`), `promotion_gate.txt`.
+`fetch.py` caches everything under `.cache/` (git-ignored): API responses as
+JSON, public matches in `matches.sqlite`. Re-run it to refresh; `heroStats` and
+matchups expire after a few hours / days, stored matches never.
+A free `OPENDOTA_API_KEY` env var raises the rate limit.
 
 ---
 
-## Acceptance criteria (spec §20)
+## How each number is computed
 
-| ID | Test | Status |
+| Question | Source | Method |
 |---|---|---|
-| AC-01 connectivity / no deadlock | soak in `test_env.py`, `env/invalid_action_rate` logged | ✅ |
-| AC-02 observation correctness | `test_observation.py` (range + missing-data) | ✅ |
-| AC-03 action validity > 99% | `env/invalid_action_rate` gate + `test_policy.py` | ✅ (0.000 observed) |
-| AC-04 PPO numerical stability | `test_policy.py`, grad-norm logged | ✅ |
-| AC-05 learning across ≥3 seeds | rotating-seed eval + F1 gate | ✅ (frozen 0.75 / rotating comparable) |
-| AC-06 regression | `evaluation/regression.py` + `test_evaluation.py`; champion/challenger check + auto-rollback | ✅ |
-| AC-07 reproducibility | `utils/seeding.py`, `test_env.py` determinism | ✅ |
-| AC-08 meta analytics | `analytics/` (build order · ability timing · power spikes · heatmaps · matched dV), `meta_report.py`, `test_analytics.py` | ✅ |
-| AC-09 patch safety | `env/patch.py` manifest + hash · `training/patch_pipeline.py` (numeric→auto / structural→approval gate / NO-OP / rollback) · `scripts/patch_diff.py` · `test_patch.py` | ✅ |
+| Tier list | `/heroStats` (rolling window, brackets 1–7 = Herald–Divine) | shrinkage-adjusted win rate `(wins + k/2)/(games + k)`, `k≈250`, so a 55 %-on-40-games hero doesn't outrank a 52 %-on-40 000 one; pick share reported alongside |
+| Counters | `/heroes/{id}/matchups` | `advantage(a,b) = winRateAdj(a facing b) − 0.5`, shrunk toward 0 (`k≈75`). Positive = a beats b |
+| Synergy | `/publicMatches` → local SQLite | for every same-team pair: `pairWinRate − expectedWinRate`, where `expected` combines the two solo win rates on the **log-odds scale** (independent-contribution baseline). Positive = the pair wins more than the sum of its parts |
+| Comp score | above | `Σ (meta − 0.5)` + `1.6 · Σ pairwise synergy`, plus attribute / damage-type / role-coverage checks |
+| Next pick | above | `w_meta·(metaWin−0.5) + w_syn·synergyWithAllies + w_ctr·advantageVsEnemies − w_vuln·enemiesAdvantageVsYou + w_role·roleFit` |
+
+Everything uses **matched comparisons and shrinkage**, not raw rates — a low-sample
+55 % is not treated as better than a high-sample 52 %.
 
 ---
 
-## Roadmap (spec §18)
+## Layout
 
-| Milestone | Deliverable | Status |
-|---|---|---|
-| M0 | Real Dota adapter — bridge + protocol + parsing done & tested; 3 manual steps left ([docs/M0_real_adapter.md](docs/M0_real_adapter.md)) | 🔧 handoff |
-| M1 | F0 environment adapter — 1000+ clean transitions, no deadlock | ✅ (mock) |
-| M2 | PPO single-worker — finite losses, measurable learning | ✅ |
-| M3 | PPO multi-worker — throughput scaling | ✅ (parallel rollout) |
-| M4 | F1 curriculum — basic 1v1 competence beats baseline | ✅ |
-| M5 | F2 build learning — power-spike / build-order competence | ✅ |
-| M6 | Evaluation harness — automated regression + Elo | ✅ |
-| M7 | League self-play — historical pool + PFSP opponent sampling | ✅ (`configs/ppo_f2_league.yaml`) |
-| M8 | Meta analyzer — event-aligned value analytics | ✅ |
-| M9 | Patch pipeline — diff → classify → retrain/NO-OP → regression gate | ✅ (`scripts/patch_diff.py`) |
-
-### Milestone M0 — before any real-client training
-
-`scripts/api_probe.lua` enumerates which observation fields the **public** Bot
-Scripting API actually exposes (fogged enemy HP, enemy ability cooldowns, …). If
-too many are missing, stay on `mock_env.py`. Only after the probe passes:
-implement `dota_rl/transport/zmq_bridge.py` and `dota_rl/env/dota_adapter.py`
-against the existing `reset()/step()` contract — the learner does not change.
+```
+metafinder/
+  opendota.py   disk-cached, rate-limited OpenDota client (stdlib)
+  heroes.py     hero metadata + tier_list(bracket)
+  store.py      SQLite match store + iterators
+  counters.py   CounterMatrix — from /matchups or from the store
+  synergy.py    SynergyMatrix — solo-strength-adjusted pair win rates
+  draft.py      recommend(...) + score_comp(...)
+  report.py     assemble + render a full meta report
+scripts/        fetch · tierlist · draft · meta
+tests/          synthetic-data tests, no network
+docs/           original project spec + blueprint (RL approach)
+```
 
 ---
 
-## Compute — why the default is CPU (spec §17)
+## Why not reinforcement learning
 
-Spec §17: *measure env step throughput first*. Measured on this workload
-(24 envs, horizon 128, encoder/LSTM 256, 4 PPO epochs):
+The original spec proposed *training an RL agent and reverse-engineering the meta
+from its behaviour* (the OpenAI Five approach). That was built and works for
+**1v1 lane mechanics** (last-hitting, ability timing, positioning) — archived on
+`archive/rl-sandbox`. But draft-level meta (5-hero comps, counters, rotations)
+needs a **full 5v5 environment with every hero modelled + league self-play at
+scale** (~128k CPU / 256 GPU / months). Not feasible on a laptop, and no public
+simulator models all ~124 heroes.
 
-| device | env-steps/s | rollout ms/iter | PPO update ms/iter |
-|---|---|---|---|
-| CPU  | 1217 | 1122 | 1403 |
-| CUDA (RTX 5050) | 1282 | **1221** | 1174 |
-
-The bottleneck is the pure-Python `MockDotaEnv.step()` loop, not the ~2M-param
-net. The rollout does 128 sequential batch-24 forward passes — CUDA is actually
-*slower* there (per-step host↔device transfer). Only the PPO update (one real
-batched matmul) gains, netting a ~5% wash. GPU becomes worthwhile with a much
-larger model / batch (curriculum F4–F5, LSTM ≥1024) or once env steps come from
-the game engine in parallel. It is one flag away: `train.device: cuda` (or
-`auto`) in any config, or `--set train.device=cuda`.
-
----
-
-## Design deviations from the source blueprint (spec §22)
-
-- Compact structured observation (~few hundred floats), **not** the ~20k OpenAI Five figure.
-- C++/Rust ingestion **deferred** — Python until profiling proves IPC is the bottleneck.
-- RND / league **not** enabled from the start — entropy-only baseline first.
-- "winrate > 70%" replaced by a multi-metric + confidence-lower-bound gate.
-- Value-head meta extraction is **event-aligned & matched**, not raw ΔV.
+Aggregating real match data is how every meta tool actually works, and it runs on
+a laptop in minutes. Hence this repo.
