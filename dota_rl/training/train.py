@@ -20,6 +20,7 @@ from ..evaluation.regression import check_regression
 from ..utils.config import pick
 from ..utils.seeding import seed_all
 from .checkpointing import CheckpointRegistry
+from .league import League, LeagueConfig
 from .ppo import PPOConfig, PPOTrainer
 from .promotion import check_f0, check_f1
 from .rollout import RolloutCollector
@@ -111,7 +112,18 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
 
     ppo_cfg = pick(cfg, "ppo", PPOConfig)
     trainer = PPOTrainer(policy, ppo_cfg, device)
-    collector = RolloutCollector(make_env, num_envs, horizon, device)
+
+    # self-play / league (spec section 7). Off unless league.enabled.
+    league = None
+    lg_cfg = pick(cfg, "league", LeagueConfig)
+    if lg_cfg.enabled:
+        league = League(lg_cfg, model_cfg, num_envs, device, seed=seed)
+        league.refresh_self(policy)
+        league.assign_all()
+        print(f"self-play league ON  (self {lg_cfg.ratio_self} / hist {lg_cfg.ratio_history} "
+              f"/ scripted {lg_cfg.ratio_scripted}, pool<= {lg_cfg.pool_capacity})")
+
+    collector = RolloutCollector(make_env, num_envs, horizon, device, league=league)
     registry = CheckpointRegistry(run_dir / "checkpoints")
     logger = JsonlLogger(run_dir / "metrics.jsonl")
 
@@ -139,8 +151,15 @@ def train(cfg: dict, run_dir: str | Path) -> dict:
         stats = trainer.update(batch)
         ep = collector.drain_episode_stats()
 
+        league_row = {}
+        if league is not None:
+            league.refresh_self(policy)              # opponent tracks the learner
+            if league.maybe_snapshot(policy, it):
+                print(f"      + league snapshot (pool size {len(league.pool)})")
+            league_row = league.summary()
+
         sps = (horizon * num_envs * it) / max(1e-9, time.time() - t0)
-        row = {**stats, **{f"rollout/{k}": v for k, v in ep.items()},
+        row = {**stats, **{f"rollout/{k}": v for k, v in ep.items()}, **league_row,
                "env/invalid_action_rate": invalid_actions / max(1, total_actions),
                "perf/env_steps_per_sec": sps}
         logger.log(it, row)

@@ -14,12 +14,15 @@ from ..env.mock_env import MockDotaEnv
 
 
 class RolloutCollector:
-    def __init__(self, make_env, num_envs: int, horizon: int, device="cpu"):
+    def __init__(self, make_env, num_envs: int, horizon: int, device="cpu", league=None):
         self.envs: list[MockDotaEnv] = [make_env(i) for i in range(num_envs)]
         self.n = num_envs
         self.T = horizon
         self.device = device
+        self.league = league          # dota_rl.training.league.League | None
         self._obs = [e.reset(seed=1000 + i)[0] for i, e in enumerate(self.envs)]
+        if self.league is not None:
+            self.league.assign_all()
         self._state = None
         self.ep_returns: list[float] = []
         self.ep_lengths: list[int] = []
@@ -51,9 +54,16 @@ class RolloutCollector:
             truncated = np.zeros(self.n, dtype=bool)
             next_obs: list = [None] * self.n
 
+            opp_actions = None
+            if self.league is not None:
+                opp_actions = self.league.opponent_actions(
+                    [env.enemy_observation() for env in self.envs]
+                )
+
             for i, env in enumerate(self.envs):
                 action = Action.from_heads(a_type[i], ent[i], ab[i], it[i], coord[i])
-                o, r, done_term, done_trunc, info = env.step(action)
+                oa = opp_actions[i] if opp_actions is not None else None
+                o, r, done_term, done_trunc, info = env.step(action, opponent_action=oa)
                 rewards[i] = r
                 terminated[i] = done_term
                 truncated[i] = done_trunc
@@ -65,7 +75,11 @@ class RolloutCollector:
                     self.ep_outcomes.append(int(info["outcome"]))
                     self._run_ret[i] = 0.0
                     self._run_len[i] = 0
+                    if self.league is not None:
+                        self.league.record_result(i, int(info["outcome"]))
                     o = env.reset()[0]
+                    if self.league is not None:
+                        self.league.on_episode_start(i)
                 next_obs[i] = o
 
             obs_steps.append(obs_t)
