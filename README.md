@@ -23,14 +23,14 @@ the **`archive/rl-sandbox`** branch (tag `rl-sandbox-v1`) — see
 
 ## Interactive draft coach
 
-**[Live tool](https://claude.ai/code/artifact/3d1cd372-b620-4a92-8fa5-e9c76d5b375f)** — enter both
+**[Live tool](https://jaxtoon.github.io/Dota2MetaFinder/)** — enter both
 lineups, get hero picks + an item build + lane advice, all reacting to the
 specific enemy/ally heroes. Rebuild it with your own fresh data:
 
 ```bash
 python scripts/fetch.py          # heroStats + matchups + ~20k public matches (~6 min once)
 python scripts/build_web.py      # + itemPopularity/laneRoles per hero -> web/index.html
-# open web/index.html, or re-publish it as an artifact
+# open web/index.html; the live copy is served from the gh-pages branch
 ```
 
 ## Command line
@@ -58,7 +58,7 @@ matchups expire after a few hours / days, stored matches never.
 A free `OPENDOTA_API_KEY` env var raises the rate limit.
 
 **Sample output** (Divine bracket, ~26k matches):
-[Meta Snapshot](https://claude.ai/code/artifact/eff05d18-abac-47f0-9481-7dccae4bb14f)
+[Meta Snapshot](https://jaxtoon.github.io/Dota2MetaFinder/meta.html)
 — tier list, counters, synergy pairs.
 
 - Top of the tier list: Bounty Hunter (56%), Phantom Lancer, OD, Spectre, Lifestealer
