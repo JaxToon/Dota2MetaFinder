@@ -1,0 +1,282 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dota 2 Meta Snapshot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#eef0ec; --panel:#f8f9f6; --panel-2:#f1f3ef; --ink:#1a231e; --muted:#5c6b62;
+  --line:#d5dbd2; --line-strong:#c1c9bf;
+  --gold:#a9781f; --gold-tint:#f2e9d6;
+  --up:#2f8e73; --down:#c05f42; --bar:rgba(169,120,31,.16);
+  --tS:#a9781f; --tA:#2f8e73; --tB:#5c6b62; --tC:#94836a; --tD:#b0785f;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0e1613; --panel:#151f1b; --panel-2:#111a17; --ink:#dde5df; --muted:#8a9790;
+  --line:#25322c; --line-strong:#33443c;
+  --gold:#d9a441; --gold-tint:#22261b;
+  --up:#4bb391; --down:#d17a5c; --bar:rgba(217,164,65,.13);
+  --tS:#d9a441; --tA:#4bb391; --tB:#8a9790; --tC:#b9a173; --tD:#d17a5c;
+}}
+:root[data-theme="dark"]{
+  --ground:#0e1613; --panel:#151f1b; --panel-2:#111a17; --ink:#dde5df; --muted:#8a9790;
+  --line:#25322c; --line-strong:#33443c;
+  --gold:#d9a441; --gold-tint:#22261b;
+  --up:#4bb391; --down:#d17a5c; --bar:rgba(217,164,65,.13);
+  --tS:#d9a441; --tA:#4bb391; --tB:#8a9790; --tC:#b9a173; --tD:#d17a5c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Newsreader",Georgia,serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:800px;margin:0 auto;padding:0 24px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+h1,h2{font-family:"Barlow Condensed",sans-serif;font-weight:700;margin:0;text-wrap:balance}
+h1{font-size:clamp(2.6rem,7vw,3.8rem);line-height:1}
+h2{font-size:1.6rem;letter-spacing:.01em}
+.eyebrow{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.14em;font-size:.78rem;color:var(--muted)}
+
+header{border-bottom:1px solid var(--line-strong);padding:60px 0 40px}
+.kicker{display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;margin-bottom:20px}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.02em;
+  border:1px solid var(--line-strong);border-radius:2px;padding:3px 8px;color:var(--muted)}
+.lede{font-size:1.15rem;max-width:46ch;margin:22px 0 0}
+.lede b{color:var(--gold);font-weight:500}
+
+section{padding:48px 0;border-bottom:1px solid var(--line)}
+section > .eyebrow{display:block;border-bottom:1px solid var(--line-strong);padding-bottom:10px;margin-bottom:8px}
+.hint{color:var(--muted);font-size:.95rem;margin:14px 0 24px;max-width:62ch}
+
+/* tier board */
+.tier{margin-top:22px}
+.tier-head{display:flex;align-items:baseline;gap:12px;margin:22px 0 8px}
+.badge{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.5rem;width:1.4em;
+  text-align:center;border-radius:3px;color:var(--ground);line-height:1.25}
+.tier-head .cnt{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--muted)}
+.row{display:grid;grid-template-columns:150px 1fr 116px;gap:12px;align-items:center;
+  padding:6px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .hero{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:1.02rem;line-height:1.1}
+.row .hero small{display:block;font-family:"IBM Plex Mono",monospace;font-weight:400;
+  font-size:.62rem;color:var(--muted);letter-spacing:.02em;text-transform:uppercase}
+.wrbar{position:relative;height:20px;background:var(--bar);border-radius:2px}
+.wrbar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--gold);border-radius:2px;opacity:.55}
+.wrbar .mid{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--line-strong)}
+.row .stat{font-family:"IBM Plex Mono",monospace;font-size:.82rem;text-align:right;white-space:nowrap}
+.row .stat b{color:var(--ink)} .row .stat span{color:var(--muted)}
+
+/* pair lists */
+.pairs{margin-top:20px;display:grid;gap:2px}
+.pair{display:grid;grid-template-columns:1fr 78px;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.pair:first-child{border-top:0}
+.pair .who{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:1.02rem}
+.pair .who .op{color:var(--muted);font-weight:500;padding:0 .4em}
+.pair .who small{font-family:"IBM Plex Mono",monospace;font-weight:400;color:var(--muted);font-size:.66rem}
+.pair .v{font-family:"IBM Plex Mono",monospace;font-weight:500;text-align:right}
+.up{color:var(--up)} .down{color:var(--down)}
+
+.method{background:var(--panel);border:1px solid var(--line-strong);border-radius:4px;padding:6px 22px 20px;margin-top:8px}
+.method dl{display:grid;grid-template-columns:130px 1fr;gap:6px 18px;margin:0}
+.method dt{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;font-size:.8rem;color:var(--gold);padding-top:12px;border-top:1px solid var(--line)}
+.method dd{margin:0;padding-top:12px;border-top:1px solid var(--line);font-size:.96rem}
+.method dl > dt:nth-of-type(1),.method dl > dd:nth-of-type(1){border-top:0}
+
+footer{padding:40px 0 68px;color:var(--muted);font-size:.84rem;font-family:"IBM Plex Mono",monospace}
+footer .wrap{max-width:66ch}
+footer a{color:var(--gold)}
+
+@media (max-width:600px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  .row{grid-template-columns:120px 1fr;grid-template-rows:auto auto}
+  .row .stat{grid-column:1/-1;text-align:left}
+  .method dl{grid-template-columns:1fr}
+  .method dt{padding-top:14px} .method dd{padding-top:2px;border-top:0}
+}
+@media (prefers-reduced-motion:no-preference){
+  .fade{opacity:0;animation:f .5s ease forwards}@keyframes f{to{opacity:1}}
+}
+</style></head><body>
+
+<header><div class="wrap">
+  <div class="kicker">
+    <span class="eyebrow">Meta snapshot</span>
+    <span class="tag">bracket: Divine</span>
+    <span class="tag" id="mtag">25,773 ranked matches</span>
+    <span class="tag">OpenDota public data</span>
+  </div>
+  <h1>Dota&nbsp;2 Meta</h1>
+  <p class="lede">Aggregated from public matches, not opinion. Win rates are <b>shrinkage-adjusted</b> so a hot 40-game hero never outranks a proven 40,000-game one.</p>
+</div></header>
+
+<section><div class="wrap">
+  <span class="eyebrow">Tier list</span>
+  <p class="hint">Ranked by adjusted win rate. Bar spans 45&ndash;57%; the hairline is 50%. Pick share is what fraction of games the hero appears in.</p>
+  <div class="tier" id="tier"></div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Hardest counters</span>
+  <p class="hint">Head-to-head win rate when both heroes are in the game on opposite teams, centred on 50% and shrunk toward zero. Only meta-tier heroes shown. Small samples &mdash; directional, not final.</p>
+  <div class="pairs" id="counters"></div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Best synergy pairs</span>
+  <p class="hint">Pair win rate <em>minus</em> what the two heroes do individually (combined on the log-odds scale). Positive = the pair wins more than the sum of its parts. Preliminary at this sample size.</p>
+  <div class="pairs" id="pairs"></div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">How to read it</span>
+  <div class="method"><dl>
+    <dt>Tier score</dt><dd><span class="mono">(wins + k/2) / (games + k)</span>, k&nbsp;&asymp;&nbsp;250 &mdash; pulls low-sample heroes toward 50%.</dd>
+    <dt>Counters</dt><dd>From OpenDota <span class="mono">/matchups</span>. <span class="mono">adv(A,B) = winRate(A vs B) &minus; 0.5</span>, shrunk.</dd>
+    <dt>Synergy</dt><dd>Same-team pair win rate minus an independent-contribution baseline from each hero's solo rate.</dd>
+    <dt>Bracket</dt><dd>OpenDota rank bracket. Divine &asymp; top ~4% of ranked. Immortal isn't split out by the API.</dd>
+    <dt>Freshness</dt><dd>Rolling window, a few days to a patch. Re-run <span class="mono">scripts/fetch.py</span> to refresh; use <span class="mono">--matches 200000</span> for firm pair stats.</dd>
+  </dl></div>
+</div></section>
+
+<footer><div class="wrap">
+  Generated by <span class="mono">scripts/meta.py</span> over 25,773 Divine-bracket public matches (snapshot of 30 Aug 2026). Read-only OpenDota API &mdash; no automated play. This is a research tool; numbers move every patch.
+  <br><br><a href="./">Interactive draft coach</a> &middot; <a href="https://github.com/JaxToon/Dota2MetaFinder">Source on GitHub</a>
+</div></footer>
+
+<script>
+const TIER = `S|Bounty Hunter|0.560|0.0144|Escape/Nuker
+S|Phantom Lancer|0.538|0.0106|Carry/Escape
+S|Outworld Destroyer|0.538|0.0069|Carry/Nuker
+S|Spectre|0.538|0.0095|Carry/Durable
+S|Lifestealer|0.533|0.0200|Carry/Durable
+S|Wraith King|0.529|0.0062|Carry/Support
+A|Night Stalker|0.528|0.0099|Carry/Initiator
+A|Legion Commander|0.527|0.0090|Carry/Disabler
+A|Bane|0.526|0.0052|Support/Disabler
+A|Spirit Breaker|0.525|0.0131|Carry/Initiator
+A|Keeper of the Light|0.525|0.0073|Support/Nuker
+A|Grimstroke|0.524|0.0063|Support/Nuker
+A|Juggernaut|0.524|0.0146|Carry/Pusher
+A|Nyx Assassin|0.522|0.0058|Disabler/Nuker
+A|Invoker|0.520|0.0221|Carry/Nuker
+A|Dragon Knight|0.518|0.0056|Carry/Pusher
+A|Lich|0.518|0.0101|Support/Nuker
+A|Dawnbreaker|0.517|0.0116|Carry/Durable
+A|Vengeful Spirit|0.516|0.0090|Support/Initiator
+B|Treant Protector|0.515|0.0097|Support/Initiator
+B|Shadow Shaman|0.515|0.0098|Support/Pusher
+B|Winter Wyvern|0.514|0.0120|Support/Disabler
+B|Earthshaker|0.514|0.0123|Support/Initiator
+B|Sven|0.513|0.0085|Carry/Disabler
+B|Phoenix|0.512|0.0066|Support/Nuker
+B|Earth Spirit|0.511|0.0133|Nuker/Escape
+B|Disruptor|0.510|0.0095|Support/Disabler
+B|Dark Seer|0.509|0.0086|Initiator/Escape
+B|Slark|0.508|0.0100|Carry/Escape
+B|Pudge|0.507|0.0283|Disabler/Initiator
+B|Lina|0.506|0.0227|Support/Carry
+B|Techies|0.505|0.0083|Nuker/Disabler
+B|Witch Doctor|0.503|0.0089|Support/Nuker
+B|Phantom Assassin|0.503|0.0053|Carry/Escape
+B|Ember Spirit|0.502|0.0147|Carry/Escape
+B|Faceless Void|0.502|0.0060|Carry/Initiator
+B|Mirana|0.502|0.0204|Carry/Support
+B|Crystal Maiden|0.502|0.0103|Support/Disabler
+B|Void Spirit|0.502|0.0055|Carry/Escape
+C|Clockwerk|0.501|0.0066|Initiator/Disabler
+C|Luna|0.501|0.0121|Carry/Nuker
+C|Rubick|0.501|0.0264|Support/Disabler
+C|Anti-Mage|0.500|0.0054|Carry/Escape
+C|Windranger|0.498|0.0183|Carry/Support
+C|Necrophos|0.498|0.0153|Carry/Nuker
+C|Tidehunter|0.496|0.0069|Initiator/Durable
+C|Dark Willow|0.495|0.0107|Support/Nuker
+C|Magnus|0.495|0.0121|Initiator/Disabler
+C|Tusk|0.494|0.0097|Initiator/Disabler
+C|Skywrath Mage|0.494|0.0088|Support/Nuker
+C|Doom|0.493|0.0104|Carry/Disabler
+C|Ringmaster|0.491|0.0077|Support/Nuker
+C|Lion|0.491|0.0211|Support/Disabler
+C|Silencer|0.490|0.0071|Carry/Support
+C|Undying|0.490|0.0172|Support/Durable
+C|Slardar|0.489|0.0089|Carry/Durable
+C|Zeus|0.489|0.0110|Nuker/Carry
+C|Snapfire|0.488|0.0152|Support/Nuker
+C|Centaur Warrunner|0.488|0.0106|Durable/Initiator
+C|Axe|0.485|0.0159|Initiator/Durable
+C|Shadow Fiend|0.485|0.0266|Carry/Nuker
+D|Ogre Magi|0.483|0.0098|Support/Nuker
+D|Io|0.480|0.0063|Support/Escape
+D|Underlord|0.480|0.0165|Support/Nuker
+D|Sniper|0.477|0.0098|Carry/Nuker
+D|Lone Druid|0.476|0.0052|Carry/Pusher
+D|Terrorblade|0.476|0.0072|Carry/Pusher
+D|Hoodwink|0.475|0.0167|Support/Nuker
+D|Mars|0.471|0.0053|Carry/Initiator
+D|Queen of Pain|0.469|0.0085|Carry/Nuker
+D|Pangolier|0.467|0.0073|Carry/Nuker
+D|Jakiro|0.466|0.0056|Support/Nuker
+D|Storm Spirit|0.465|0.0080|Carry/Escape
+D|Templar Assassin|0.457|0.0053|Carry/Escape
+D|Drow Ranger|0.454|0.0093|Carry/Disabler
+D|Kez|0.448|0.0060|Carry/Escape
+D|Timbersaw|0.448|0.0067|Nuker/Durable
+D|Tiny|0.447|0.0067|Carry/Nuker
+D|Nature's Prophet|0.435|0.0120|Carry/Pusher`;
+
+const COUNTERS = [
+["Treant Protector","Invoker",0.121,74],["Earthshaker","Sven",0.106,104],
+["Nyx Assassin","Void Spirit",0.096,87],["Phoenix","Void Spirit",0.095,166],
+["Ember Spirit","Void Spirit",0.093,182],["Treant Protector","Dawnbreaker",0.091,68],
+["Treant Protector","Spirit Breaker",0.090,58],["Keeper of the Light","Phoenix",0.089,87],
+["Clockwerk","Vengeful Spirit",0.087,45],["Nyx Assassin","Lich",0.085,49],
+["Dawnbreaker","Vengeful Spirit",0.085,78]];
+
+const PAIRS = [
+["Windranger","Lich",0.130,73],["Windranger","Tusk",0.122,51],
+["Invoker","Skywrath Mage",0.105,78],["Sven","Windranger",0.099,60],
+["Anti-Mage","Necrophos",0.094,46],["Necrophos","Disruptor",0.092,65],
+["Tidehunter","Luna",0.091,44],["Treant Protector","Rubick",0.089,57],
+["Crystal Maiden","Earth Spirit",0.088,49],["Anti-Mage","Rubick",0.080,93],
+["Dark Seer","Spirit Breaker",0.080,54],["Windranger","Lina",0.077,113]];
+
+const TCOL = {S:'--tS',A:'--tA',B:'--tB',C:'--tC',D:'--tD'};
+const tierEl = document.getElementById('tier');
+const rows = TIER.trim().split('\n').map(l=>l.split('|'));
+let cur=null, group=null, delay=0;
+for(const [t,hero,wr,ps,roles] of rows){
+  if(t!==cur){
+    cur=t;
+    const cnt = rows.filter(r=>r[0]===t).length;
+    const h=document.createElement('div'); h.className='tier-head';
+    h.innerHTML=`<span class="badge" style="background:var(${TCOL[t]})">${t}</span>`+
+      `<span class="cnt">${cnt} heroes</span>`;
+    tierEl.appendChild(h);
+    group=document.createElement('div'); tierEl.appendChild(group);
+  }
+  const w=parseFloat(wr), p=parseFloat(ps);
+  const fill=Math.max(0,Math.min(100,(w-0.45)/0.12*100));
+  const mid=(0.50-0.45)/0.12*100;
+  const r=document.createElement('div'); r.className='row fade'; r.style.animationDelay=(delay+=12)+'ms';
+  r.innerHTML=
+    `<div class="hero">${hero}<small>${roles.replace('/',' / ')}</small></div>`+
+    `<div class="wrbar"><span class="fill" style="width:${fill}%"></span><span class="mid" style="left:${mid}%"></span></div>`+
+    `<div class="stat"><b>${(w*100).toFixed(1)}%</b> <span>&nbsp;${(p*100).toFixed(1)}% pick</span></div>`;
+  group.appendChild(r);
+}
+
+function pairList(el, data, op, cls){
+  const host=document.getElementById(el);
+  for(const [a,b,v,n] of data){
+    const d=document.createElement('div'); d.className='pair';
+    d.innerHTML=`<div class="who">${a}<span class="op">${op}</span>${b} <small>&nbsp;n=${n}</small></div>`+
+      `<div class="v ${cls}">+${v.toFixed(2)}</div>`;
+    host.appendChild(d);
+  }
+}
+pairList('counters', COUNTERS, '&rsaquo;', 'up');
+pairList('pairs', PAIRS, '+', 'up');
+</script>
+
+</body></html>
